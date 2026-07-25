@@ -1,0 +1,30 @@
+naver:
+  account_source: "user_input"
+  login_id: ""
+  blog_id: ""
+  blog_write_url: ""
+  login_mode: "credentials_then_browser_profile"
+  browser_channel: "chrome"
+  browser_profile_dir: "data/browser-profile"
+
+posting:
+  save_mode: "draft_only"
+  selector_path: "config/blog_selectors.yaml"
+  content_dir: "output/contents"
+  thumbnail_dir: "output/thumbnails"
+
+optional_assets:
+  phone_banner: "templates/전화연결배너.png"
+  transaction_complete_warning: "templates/거래완료경고.png"
+
+optional_integrations:
+  esiljang:
+    login_id: ""
+    password_storage: "os_keyring"
+    credential_service: "esiljang-automation"
+    status: "credentials_only_not_connected"
+
+security:
+  password_storage: "os_keyring"
+  credential_service: "naver-blog-automation"
+  note: "비밀번호 원문은 설정 파일에 기록하지 않고 운영체제 보안 저장소에 저장합니다."

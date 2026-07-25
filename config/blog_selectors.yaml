@@ -1,0 +1,417 @@
+# 네이버 블로그 CSS 셀렉터 모음
+
+# 네이버 로그인
+login:
+  url: "https://nid.naver.com/nidlogin.login"
+  id:
+    - "#id"
+    - "input[name='id']"
+  password:
+    - "#pw"
+    - "input[name='pw']"
+  submit:
+    - "#loginBtn_column"
+    - "#loginBtn_row"
+    - '#log\.login'
+    - "button.btn_done"
+  error:
+    - "#err_common"
+    - ".error_message"
+    - "[role='alert']"
+  challenge:
+    - "#captcha"
+    - "[class*='captcha']"
+    - "[class*='device']"
+
+# 글쓰기 기본 요소
+editor:
+  draft_popup_cancel:
+    - ".se-popup-alert-confirm button.se-popup-button-cancel"
+    - ".se-popup.__se-sentry.se-popup-alert-confirm button.se-popup-button-cancel"
+    - "button.se-popup-button.se-popup-button-cancel"
+
+  title:
+    # SE-로 시작하는 id는 페이지를 열 때마다 바뀌므로 사용하지 않는다.
+    - ".se-component[data-a11y-title='제목'] .se-title-text .se-text-paragraph"
+    - ".se-documentTitle .se-title-text .se-text-paragraph"
+    - "div.se-title-text"
+    - "textarea.se-title-textarea"
+  
+  body:
+    - ".se-component[data-a11y-title='본문'] .se-text-paragraph"
+    - ".se-component.se-text .se-text-paragraph"
+    - ".se-section-text .se-text-paragraph"
+  
+  iframe:
+    - "mainFrame"
+
+# 툴바 버튼
+toolbar:
+  # 문단 서식 (소제목/본문)
+  text_format:
+    dropdown:
+      - ".se-text-format-toolbar-button"
+      - "button[data-name='text-format'][data-type='label-select']"
+      - ".se-property-toolbar-label-select-button[data-name='text-format']"
+    
+    subtitle:  # 소제목
+      - ".se-toolbar-option-text-format-sectionTitle-button"
+      - "button[data-value='sectionTitle']"
+      - "button[data-name='text-format'][data-value='sectionTitle']"
+    
+    body:  # 본문
+      - ".se-toolbar-option-text-format-text-button"
+      - "button[data-value='text']"
+      - "button[data-name='text-format'][data-value='text']"
+  
+  # 글자 크기
+  font_size:
+    dropdown:
+      - ".se-font-size-code-toolbar-button"
+      - "button[data-name='font-size'][data-type='label-select']"
+      - ".se-property-toolbar-label-select-button[data-name='font-size']"
+    
+    sizes:
+      fs12:  # 12pt
+        - ".se-toolbar-option-font-size-code-fs12-button"
+        - "button[data-value='fs12']"
+      fs14:  # 14pt
+        - ".se-toolbar-option-font-size-code-fs14-button"
+        - "button[data-value='fs14']"
+      fs16:  # 16pt
+        - ".se-toolbar-option-font-size-code-fs16-button"
+        - "button[data-value='fs16']"
+      fs18:  # 18pt
+        - ".se-toolbar-option-font-size-code-fs18-button"
+        - "button[data-value='fs18']"
+      fs24:  # 24pt
+        - ".se-toolbar-option-font-size-code-fs24-button"
+        - "button[data-value='fs24']"
+      fs30:  # 30pt
+        - ".se-toolbar-option-font-size-code-fs30-button"
+        - "button[data-value='fs30']"
+  
+  # 글자 스타일
+  font_style:
+    bold:  # 굵게
+      - "button[data-name='font-weight']"
+      - ".se-toolbar-option-font-weight-button"
+      - "button[title*='굵게']"
+      - "button.se-toolbar-bold-button"
+    
+    italic:  # 기울임
+      - "button[data-name='font-style']"
+      - ".se-toolbar-option-font-style-button"
+      - "button[title*='기울임']"
+    
+    underline:  # 밑줄
+      - "button[data-name='text-decoration']"
+      - ".se-toolbar-option-text-decoration-button"
+      - "button[title*='밑줄']"
+    
+    strike:  # 취소선
+      - "button[data-name='strike']"
+      - ".se-toolbar-option-strike-button"
+      - "button[title*='취소선']"
+  
+  # 글자 색상
+  color:
+    text:  # 글자 색
+      - "button[data-name='color']"
+      - ".se-toolbar-option-color-button"
+    
+    background:  # 배경색
+      - "button[data-name='background-color']"
+      - ".se-toolbar-option-background-color-button"
+  
+  # 줄 간격
+  line_height:
+    dropdown:
+      - ".se-line-height-toolbar-button"
+      - "button[data-name='line-height'][data-type='drop-down']"
+      - ".se-property-toolbar-drop-down-button[data-name='line-height']"
+    
+    heights:
+      h130:  # 130%
+        - ".se-toolbar-option-line-height-130-button"
+        - "button[data-value='130']"
+      h150:  # 150%
+        - ".se-toolbar-option-line-height-150-button"
+        - "button[data-value='150']"
+      h160:  # 160%
+        - ".se-toolbar-option-line-height-160-button"
+        - "button[data-value='160']"
+      h170:  # 170%
+        - ".se-toolbar-option-line-height-170-button"
+        - "button[data-value='170']"
+      h180:  # 180%
+        - ".se-toolbar-option-line-height-180-button"
+        - "button[data-value='180']"
+      h200:  # 200%
+        - ".se-toolbar-option-line-height-200-button"
+        - "button[data-value='200']"
+  
+  # 정렬
+  align:
+    left:  # 왼쪽
+      - "button[data-name='align'][data-value='left']"
+      - ".se-toolbar-option-align-left-button"
+    
+    center:  # 가운데
+      - "button[data-name='align'][data-value='center']"
+      - ".se-toolbar-option-align-center-button"
+    
+    right:  # 오른쪽
+      - "button[data-name='align'][data-value='right']"
+      - ".se-toolbar-option-align-right-button"
+  
+  # 링크
+  link:
+    insert:  # 링크 삽입
+      - "button[data-name='link']"
+      - ".se-toolbar-option-link-button"
+      - "button[title*='링크']"
+    
+    edit:  # 링크 편집
+      - "button[data-name='edit-link']"
+      - ".se-toolbar-link-edit-button"
+
+# 삽입 요소
+insert:
+  # 이미지
+  image:
+    button:
+      - "button[data-name='image']"
+      - "button[aria-label*='사진']"
+      - ".se-toolbar-button-image"
+      - ".se-document-toolbar-basic-button[data-name='image']"
+    
+    file_input:
+      - "input[type='file']"
+      - "input[accept*='image']"
+
+  # 동영상
+  video:
+    - "button[data-name='video']"
+    - ".se-toolbar-button-video"
+  
+  # 지도
+  map:
+    - "button[data-name='map']"
+    - ".se-toolbar-button-map"
+  
+  # 구분선
+  divider:
+    dropdown:
+      - "button.se-document-toolbar-select-option-button[data-name='horizontal-line'][data-type='icon-select']"
+      - "button[data-name='horizontal-line'][data-type='icon-select']"
+      - ".se-document-toolbar-select-option-button[data-name='horizontal-line']"
+      - ".se-text-icon-toolbar-select-option-button[data-name='horizontal-line']"
+    
+    styles:
+      line0:  # 1번째 스타일 (기본 실선)
+        - ".se-toolbar-option-insert-horizontal-line-line0-button"
+        - "button[data-value='line0']"
+      
+      line1:  # 2번째 스타일 (굵은 실선) ← 추천!
+        - "button.se-toolbar-option-insert-horizontal-line-line1-button[data-value='line1']"
+        - ".se-toolbar-option-insert-horizontal-line-line1-button"
+        - "button[data-name='horizontal-line'][data-value='line1']"
+      
+      line2:  # 3번째 스타일 (점선)
+        - ".se-toolbar-option-insert-horizontal-line-line2-button"
+        - "button[data-value='line2']"
+  
+  # 인용구
+  quotation:
+    dropdown:
+      - "button[data-name='sticker'][data-type='sticker-select']"
+      - ".se-document-toolbar-sticker-button"
+      - ".se-text-icon-toolbar-sticker-button"
+    
+    styles:
+      default:  # 기본
+        - ".se-toolbar-option-insert-sticker-default-button"
+        - "button[data-value='default']"
+      speech:  # 말풍선
+        - ".se-toolbar-option-insert-sticker-speech-button"
+        - "button[data-value='speech']"
+  
+  # 파일 첨부
+  file:
+    - "button[data-name='file']"
+    - ".se-toolbar-button-file"
+  
+  # 표
+  table:
+    - "button[data-name='table']"
+    - ".se-toolbar-button-table"
+  
+  # 코드 블록
+  code:
+    - "button[data-name='code']"
+    - ".se-toolbar-button-code"
+
+# 해시태그
+hashtag:
+  input:
+    - "input[placeholder*='태그']"
+    - "input.se-tag-input"
+    - ".se-tag-editor input"
+
+# 발행 버튼
+publish:
+  # 임시저장
+  draft:
+    - ".save_btn__bzc5B"           # 핵심 클래스만 사용 (가장 확실)
+    - "button.save_btn__bzc5B"     # 버튼 태그 + 클래스
+    - "button.se-header-button-save" # 최신 에디터 공통
+    - "button[class*='save_btn']"  # 부분 일치 대응
+    - "button[data-action='temp']"
+    - "button.se_publishBtn.__se_temp"
+    - ".publish-layer-spot-button-temp"
+  
+  # 상단 발행 버튼 = 발행 설정 레이어(패널)를 여는 버튼
+  publish:
+    - "button[class*='publish_btn']"     # 최신 에디터 발행 버튼(핵심 클래스 부분 일치)
+    - "button[data-testid='publishButton']"
+    - "button[data-click-area='tpb.publish']"
+    - "button[data-action='publish']"
+    - "button.se_publishBtn.__se_publish"
+    - ".publish-layer-spot-button-publish"
+  # 발행 설정 패널 '맨 아래'의 발행 확정(제출) 버튼 — 상단 버튼과 반드시 구분.
+  # 실제 확인된 값: data-testid="seOnePublishBtn", data-click-area="tpb*i.publish",
+  # class="confirm_btn__…"
+  publish_confirm:
+    - "button[data-testid='seOnePublishBtn']"
+    - "button[data-click-area='tpb*i.publish']"
+    - "button[class*='confirm_btn']"
+  # 발행 직후 '비공개→전체공개로 변경' 확인 팝업의 '확인' 버튼.
+  change_confirm:
+    - "button.se-popup-button-confirm"
+    - ".se-popup-button-confirm"
+    - "[class*='popup'] button[class*='confirm']"
+    - "[role='dialog'] button[class*='confirm']"
+
+  # 예약 발행
+  schedule:
+    button:
+      - "button.se-popup-button-schedule"
+      - "button[data-action='schedule']"
+      - ".publish-option-schedule-button"
+    
+    # 예약 발행 팝업
+    popup:
+      date_input:
+        - "input[name='scheduleDate']"
+        - ".schedule-date-input"
+      
+      hour_select:
+        - "select[name='scheduleHour']"
+        - ".schedule-hour-select"
+      
+      minute_select:
+        - "select[name='scheduleMinute']"
+        - ".schedule-minute-select"
+      
+      confirm:
+        - "button.schedule-confirm"
+        - "button[data-action='confirm-schedule']"
+
+# 공개 설정
+visibility:
+  # 공개 범위 라디오(기본값이 '비공개'라 발행 시 '전체공개'를 반드시 명시해야 함).
+  # 확인된 값: 전체공개 id=open_public value=2 data-testid=openType_2,
+  #           비공개 id=open_private value=0 (기본 checked).
+  # 라디오 input이 커스텀 스타일로 숨겨질 수 있어 '라벨' 클릭을 우선한다.
+  public:
+    - "label[for='open_public']"
+    - "#open_public"
+    - "input[data-testid='openType_2']"
+    - "input[data-click-area='tpb*i.all']"
+    - "input[name='open_type'][value='2']"
+
+  neighbor:
+    - "label[for='open_neighbor']"
+    - "#open_neighbor"
+    - "input[data-testid='openType_1']"
+
+  private:
+    - "label[for='open_private']"
+    - "#open_private"
+    - "input[data-testid='openType_0']"
+
+# 카테고리
+category:
+  # 최신 에디터: 커스텀 드롭다운(버튼 클릭 → 메뉴에서 항목 선택)
+  button:
+    - "button[data-click-area='tpb*i.category']"
+    - "button[aria-label='카테고리 목록 버튼']"
+    - "button[class*='selectbox_button']"
+  # 버튼 클릭 후 열리는 메뉴의 카테고리 항목들
+  menu_item:
+    - "[role='menu'] [role='menuitemradio']"
+    - "[role='menu'] [role='menuitem']"
+    - "[role='menu'] li button"
+    - "[role='menu'] button"
+    - "[role='menu'] li"
+    - "[data-testid^='categoryItem']"
+  # 구버전 호환: 네이티브 select
+  dropdown:
+    - "select[name='categoryNo']"
+    - ".category-select"
+  option:
+    - "option[value='{category_id}']"
+
+# 썸네일
+thumbnail:
+  # 대표 이미지 설정 버튼
+  button:
+    - "button.se-thumbnail-button"
+    - ".thumbnail-set-button"
+    - "button[data-action='set-thumbnail']"
+  
+  # 썸네일 선택 영역
+  select:
+    - ".thumbnail-select-image"
+    - ".se-thumbnail-selector"
+  
+  # 썸네일 업로드
+  upload:
+    - "input[type='file'][accept='image/*']"
+    - ".thumbnail-upload-input"
+
+# 팝업/모달
+popup:
+  # 네이버 스마트에디터 도움말 패널. 표시된 상태에서는 상단 임시저장 버튼 클릭을 가로막는다.
+  blocking_help:
+    - "h1.se-help-title"
+    - "div[class*='container']:has(h1.se-help-title)"
+
+  # 닫기 버튼
+  close:
+    - "button.se-help-panel-close-button" # 도움말 패널 닫기
+    - "button[aria-label*='도움말'][aria-label*='닫기']"
+    - "div[class*='container']:has(h1.se-help-title) button[aria-label*='닫기']"
+    - "div[class*='container']:has(h1.se-help-title) button[class*='close']"
+    - "button.se-popup-button-cancel"
+    - "button[data-action='close']"
+    - ".popup-close-button"
+  
+  # 확인 버튼
+  confirm:
+    - "button.se-popup-button-confirm"
+    - "button[data-action='confirm']"
+    - ".popup-confirm-button"
+
+# 에디터 상태
+editor_state:
+  # 현재 포커스된 요소
+  focused:
+    - ".se-component.se-component-focused"
+    - "[contenteditable='true']:focus"
+  
+  # 편집 중인 텍스트
+  editing:
+    - ".se-text-paragraph"
+    - ".se-module-text"

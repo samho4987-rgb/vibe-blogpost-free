@@ -1,0 +1,16 @@
+{
+  "articleNo": "SAMPLE-001",
+  "articleName": "한강뷰 리버파크 아파트",
+  "realEstateTypeName": "아파트",
+  "tradeTypeName": "매매",
+  "dealOrWarrantPrc": "12억 5,000",
+  "cityName": "서울시",
+  "roadAddress": "샘플구 샘플로 123",
+  "area1": "109.2",
+  "area2": "84.9",
+  "floorInfo": "12/25층",
+  "roomCount": "3",
+  "direction": "남동향",
+  "articleFeatureDesc": "채광 좋음, 역 도보권, 넉넉한 수납",
+  "articleDescription": "거실과 주방 동선이 편리하고 관리 상태가 좋은 샘플 매물입니다. 실제 매물이 아니며 프로그램 테스트에만 사용합니다."
+}

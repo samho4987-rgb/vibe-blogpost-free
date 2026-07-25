@@ -1,0 +1,7 @@
+google-genai>=1.67,<2
+Pillow>=11.0,<13
+playwright>=1.50,<2
+PyYAML>=6.0,<7
+httpx>=0.28,<1
+python-dotenv>=1.0,<2
+keyring>=25.0,<26

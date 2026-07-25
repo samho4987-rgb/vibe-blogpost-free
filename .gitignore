@@ -1,0 +1,32 @@
+# ── 비밀정보 (절대 커밋 금지) ─────────────────────────────
+.env
+config/user_settings.json
+config/settings.yaml
+
+# 로그인 세션·브라우저 프로필 (개인 쿠키/자격 포함)
+data/
+!data/.gitkeep
+
+# 생성물 (매물별 원고·이미지·실행 원자료)
+output/
+release/
+
+# 삭제 예정 임시 폴더(쓰레기) — git·배포에 포함하지 않음
+_to_delete/
+**/_to_delete/
+
+# ── 파이썬 / 빌드 산출물 ─────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+build/
+dist/
+*.spec
+
+# ── OS / 에디터 ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
