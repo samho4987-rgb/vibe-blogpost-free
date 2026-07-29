@@ -125,6 +125,7 @@ from naver_blog_automation.thumbnail import (
     parse_template,
 )
 from naver_blog_automation.workflow import BlogAutomationWorkflow
+from claude_theme import apply_claude_theme, C
 
 
 ACTION_LABELS = (
@@ -164,11 +165,6 @@ def resolve_blog_id(login_id: str, blog_id: str) -> str:
 
 
 class BlogAutomationApp:
-    BG = "#f3f6f8"
-    NAVY = "#16344c"
-    BLUE = "#2b6f8a"
-    GOLD = "#d6a546"
-    GREEN = "#2f7d61"
     # macOS 물리 키코드(한글 IME여도 불변): V=9, C=8, X=7, A=0
     _MAC_EDIT_KEYCODES = {9: "<<Paste>>", 8: "<<Copy>>", 7: "<<Cut>>", 0: "<<SelectAll>>"}
 
@@ -185,7 +181,7 @@ class BlogAutomationApp:
         self.root.title(f"네이버 블로그 매물 포스팅 자동화  v{APP_VERSION}")
         self.root.geometry("1240x840")
         self.root.minsize(1050, 720)
-        self.root.configure(bg=self.BG)
+        self.root.configure(bg=C.CANVAS)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self.article_var = tk.StringVar()
@@ -403,110 +399,18 @@ class BlogAutomationApp:
             pass
 
     def _configure_style(self) -> None:
-        style = ttk.Style()
-        try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
-        style.configure("App.TFrame", background=self.BG)
-        style.configure(
-            "Header.TLabel",
-            background=self.NAVY,
-            foreground="white",
-            font=("Apple SD Gothic Neo", 24, "bold"),
-        )
-        style.configure(
-            "HeaderSub.TLabel",
-            background=self.NAVY,
-            foreground="#dce8ef",
-            font=("Apple SD Gothic Neo", 11),
-        )
-        style.configure(
-            "Section.TLabelframe",
-            background="white",
-            bordercolor="#d8e0e5",
-            relief="solid",
-        )
-        style.configure(
-            "Section.TLabelframe.Label",
-            background="white",
-            foreground=self.NAVY,
-            font=("Apple SD Gothic Neo", 12, "bold"),
-        )
-        style.configure("White.TFrame", background="white")
-        style.configure(
-            "Primary.TButton",
-            background=self.BLUE,
-            foreground="white",
-            padding=(14, 10),
-            font=("Apple SD Gothic Neo", 11, "bold"),
-        )
-        style.map("Primary.TButton", background=[("active", "#225a70")])
-        style.configure(
-            "Safe.TButton",
-            background=self.GREEN,
-            foreground="white",
-            padding=(14, 10),
-            font=("Apple SD Gothic Neo", 11, "bold"),
-        )
-        style.map("Safe.TButton", background=[("active", "#28684f")])
-        # 현재 진행 중인 단계 버튼 색상(황색). 작업 중에는 버튼이 비활성(disabled)이라
-        # disabled 상태에서도 색이 유지되도록 map에 명시한다.
-        style.configure(
-            "StepBusy.TButton",
-            background="#e0a12e",
-            foreground="white",
-            padding=(14, 10),
-            font=("Apple SD Gothic Neo", 11, "bold"),
-        )
-        style.map(
-            "StepBusy.TButton",
-            background=[("disabled", "#e0a12e"), ("active", "#c88f27")],
-            foreground=[("disabled", "white")],
-        )
-        # 수행 완료된 단계 버튼 색상(✓ 표시와 함께 '실행됨'을 나타냄, 초록)
-        style.configure(
-            "StepDone.TButton",
-            background="#3f9068",
-            foreground="white",
-            padding=(14, 10),
-            font=("Apple SD Gothic Neo", 11, "bold"),
-        )
-        style.map(
-            "StepDone.TButton",
-            background=[("disabled", "#5f9e80"), ("active", "#357a58")],
-            foreground=[("disabled", "white")],
-        )
-        style.configure(
-            "Secondary.TButton",
-            background="#e8eef2",
-            foreground=self.NAVY,
-            padding=(12, 9),
-        )
-        style.configure(
-            "Compact.TButton",
-            background="#e8eef2",
-            foreground=self.NAVY,
-            padding=(8, 3),
-        )
-        style.configure(
-            "Status.TLabel",
-            background="#eaf1f5",
-            foreground=self.NAVY,
-            padding=(12, 8),
-            font=("Apple SD Gothic Neo", 10),
-        )
+        apply_claude_theme(self.root)
 
     def _build_ui(self) -> None:
-        header = tk.Frame(self.root, bg=self.NAVY, height=92)
+        header = tk.Frame(self.root, bg=C.INK, height=92)
         header.pack(fill="x")
         header.pack_propagate(False)
         # 우측 상단: 기능개선·피드백 페이지 링크
         feedback_link = tk.Label(
             header,
             text="💬 기능개선·피드백",
-            bg=self.NAVY,
-            fg="#DCE4EC",
+            bg=C.INK,
+            fg=C.TEXT_ON_DARK_SOFT,
             cursor="hand2",
             font=("Apple SD Gothic Neo", 11, "underline"),
         )
@@ -568,8 +472,8 @@ class BlogAutomationApp:
         ttk.Label(
             option_frame,
             text="이미지는 외부 API 없이 이 컴퓨터에서 생성됩니다.",
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=310,
         ).pack(side="left")
 
@@ -672,8 +576,8 @@ class BlogAutomationApp:
         ttk.Label(
             preview_header,
             text="제목·본문·이미지를 확인한 뒤 오른쪽 단추로 바로 포스팅할 수 있어요.",
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
         ).grid(row=0, column=0, sticky="w")
         self.preview_post_button = ttk.Button(
             preview_header,
@@ -688,8 +592,8 @@ class BlogAutomationApp:
         ttk.Label(
             preview_tab,
             text="제목",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=1, column=0, sticky="w")
         ttk.Entry(preview_tab, textvariable=self.title_var).grid(
@@ -698,8 +602,8 @@ class BlogAutomationApp:
         ttk.Label(
             preview_tab,
             text="본문  (붙여넣기가 안 되면 마우스 우클릭 → 붙여넣기)",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=3, column=0, sticky="w")
         self.body_text = self._text_area(preview_tab)
@@ -707,8 +611,8 @@ class BlogAutomationApp:
         ttk.Label(
             preview_tab,
             text="해시태그 (쉼표로 구분)",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=5, column=0, sticky="w")
         ttk.Entry(preview_tab, textvariable=self.tags_var).grid(
@@ -742,8 +646,8 @@ class BlogAutomationApp:
                 "URL로 첨부: .jpg/.png 등으로 바로 열리는 공개 이미지 주소만 됩니다"
                 "(로그인·만료 주소는 실패). AI 이미지는 먼저 다운로드하는 편이 안전합니다."
             ),
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=360,
             justify="left",
         ).grid(row=4, column=0, columnspan=4, sticky="w", pady=(8, 0))
@@ -756,8 +660,8 @@ class BlogAutomationApp:
                 "아래 조사 내용을 확인하고, 사실과 다르거나 빠진 부분을 자유롭게 수정·보완하세요.\n"
                 "여기서 다듬은 내용이 '2. 프롬프트 생성' 시 그대로 프롬프트에 반영됩니다."
             ),
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=780,
             justify="left",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
@@ -784,8 +688,8 @@ class BlogAutomationApp:
                 "기본은 Google/Gemini 호출 없이 로컬에서 1:1 PNG로 생성되며, "
                 "본문 카드 이미지(핵심정보·입지·체크포인트)도 함께 만들어집니다."
             ),
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=760,
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
         template_bar = ttk.Frame(image_tab, style="White.TFrame")
@@ -793,7 +697,7 @@ class BlogAutomationApp:
         ttk.Label(
             template_bar,
             text="디자인 템플릿",
-            background="white",
+            background=C.SURFACE,
         ).pack(side="left")
         self.image_template_var = tk.StringVar(
             value=TEMPLATE_LABELS.get(
@@ -814,7 +718,7 @@ class BlogAutomationApp:
         ttk.Label(
             template_bar,
             text="색상 프리셋",
-            background="white",
+            background=C.SURFACE,
         ).pack(side="left", padx=(16, 0))
         self.image_preset_var = tk.StringVar(value="템플릿 기본")
         self.image_preset_combo = ttk.Combobox(
@@ -861,8 +765,8 @@ class BlogAutomationApp:
         self.image_preview_label = tk.Label(
             image_preview_frame,
             text="생성된 1:1 대표 이미지가 여기에 표시됩니다.",
-            bg="#eef3f6",
-            fg="#526574",
+            bg=C.SURFACE_SOFT,
+            fg=C.TEXT_MUTED,
             justify="center",
             relief="solid",
             borderwidth=1,
@@ -871,8 +775,8 @@ class BlogAutomationApp:
         ttk.Label(
             image_preview_frame,
             textvariable=self.image_status_var,
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=340,
         ).grid(row=1, column=0, sticky="ew", pady=(8, 0))
         image_buttons = ttk.Frame(image_tab, style="White.TFrame")
@@ -990,15 +894,15 @@ class BlogAutomationApp:
         ttk.Label(
             map_heading,
             textvariable=self.map_title_var,
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 13, "bold"),
         ).grid(row=0, column=0, sticky="w")
         ttk.Label(
             map_heading,
             textvariable=self.map_address_var,
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=760,
         ).grid(row=1, column=0, sticky="w", pady=(3, 0))
 
@@ -1009,8 +913,8 @@ class BlogAutomationApp:
                 "이곳에 동적 지도와 로드뷰가 표시됩니다.\n\n"
                 "마우스로 지도를 끌거나 휠과 ＋/－ 버튼으로 확대·축소할 수 있습니다."
             ),
-            bg="#eef3f6",
-            fg="#526574",
+            bg=C.SURFACE_SOFT,
+            fg=C.TEXT_MUTED,
             font=("Apple SD Gothic Neo", 12),
             justify="center",
             relief="solid",
@@ -1040,8 +944,8 @@ class BlogAutomationApp:
         ttk.Label(
             map_tab,
             textvariable=self.map_status_var,
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=760,
         ).grid(row=3, column=0, sticky="ew", pady=(7, 8))
 
@@ -1087,8 +991,8 @@ class BlogAutomationApp:
                 "복사해 아래에 붙여 넣으세요. 매물번호는 조회할 때마다 자동으로 "
                 "바뀌므로, 어느 매물의 cURL이든 한 번만 붙여 넣으면 됩니다."
             ),
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=700,
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
         self.curl_text = self._text_area(settings_tab, height=9)
@@ -1132,8 +1036,8 @@ class BlogAutomationApp:
                 "창 없이 새 토큰·쿠키를 자동으로 발급해 이어서 수집합니다. 자동 갱신이 "
                 "차단되는 경우에만 cURL을 직접 복사해 붙여 넣어 주세요."
             ),
-            background="white",
-            foreground="#7a5b20",
+            background=C.SURFACE,
+            foreground=C.WARNING_TEXT,
             wraplength=760,
         ).grid(row=4, column=0, sticky="w", pady=(8, 0))
 
@@ -1145,15 +1049,15 @@ class BlogAutomationApp:
                 "'(선택) AI로 자동 글쓰기'에 사용하는 기본 프롬프트입니다. 필요에 맞게 수정한 뒤 "
                 "'프롬프트 저장'을 누르세요. 변경 내용은 이 컴퓨터에만 저장됩니다."
             ),
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=760,
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
         ttk.Label(
             prompt_tab,
             text="글쓰기 말투·형식 지침",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=1, column=0, sticky="w", pady=(0, 4))
         self.tone_text = self._text_area(prompt_tab, height=4)
@@ -1162,8 +1066,8 @@ class BlogAutomationApp:
         ttk.Label(
             prompt_tab,
             text="상세 글 작성 프롬프트",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=3, column=0, sticky="w", pady=(0, 4))
         self.writing_prompt_text = self._text_area(prompt_tab)
@@ -1208,8 +1112,8 @@ class BlogAutomationApp:
             label = ttk.Label(
                 steps_frame,
                 text=text,
-                background="white",
-                foreground="#75838d",
+                background=C.SURFACE,
+                foreground=C.TEXT_FAINT,
                 padding=(4, 2),
             )
             label.grid(row=0, column=index, sticky="w")
@@ -1233,8 +1137,8 @@ class BlogAutomationApp:
                 "내 매물 CSV가 있는 폴더를 지정하면 목록이 표시됩니다. "
                 "매물을 클릭하면 왼쪽 '매물번호' 칸에 자동으로 채워집니다."
             ),
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=680,
         ).grid(row=0, column=0, sticky="w")
 
@@ -1247,8 +1151,8 @@ class BlogAutomationApp:
         self.listings_dir_label = ttk.Label(
             bar,
             text=self.settings.my_listings_dir or "(폴더 미지정)",
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
         )
         self.listings_dir_label.grid(row=0, column=1, sticky="w", padx=(10, 6))
         ttk.Button(
@@ -1280,7 +1184,7 @@ class BlogAutomationApp:
         self.listings_tree = tree
 
         self.listings_count_label = ttk.Label(
-            parent, text="", background="white", foreground="#6b7780"
+            parent, text="", background=C.SURFACE, foreground=C.TEXT_MUTED
         )
         self.listings_count_label.grid(row=3, column=0, sticky="w", pady=(6, 0))
         self._refresh_my_listings()
@@ -1464,8 +1368,8 @@ class BlogAutomationApp:
                 "완성된 글은 blog자료 본문에, 이미지는 파일로 넣어 포스팅합니다. (앱이 Gemini를 호출하지 않아 503 없음)\n"
                 "💡 붙여넣기가 안 되면 입력칸에서 마우스 우측 버튼(우클릭) → '붙여넣기'를 사용하세요."
             ),
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=780,
             justify="left",
         ).grid(row=0, column=0, sticky="w", pady=(0, 8))
@@ -1476,8 +1380,8 @@ class BlogAutomationApp:
         ttk.Label(
             blog_head,
             text="블로그 글 작성 프롬프트",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=0, column=0, sticky="w")
         ttk.Button(
@@ -1489,8 +1393,8 @@ class BlogAutomationApp:
         ttk.Label(
             blog_head,
             text="↓ 아래 프롬프트를 '복사'해서 사용하는 AI(제미나이·챗GPT 등)에 붙여넣어 글을 요청하세요.",
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=780,
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(2, 0))
         self.copy_blog_prompt_text = self._text_area(parent, height=10)
@@ -1502,8 +1406,8 @@ class BlogAutomationApp:
         ttk.Label(
             image_head,
             text="이미지 생성 프롬프트 (썸네일 1 + 본문 개념 이미지 3, JSON)",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=0, column=0, sticky="w")
         ttk.Button(
@@ -1515,8 +1419,8 @@ class BlogAutomationApp:
         ttk.Label(
             image_head,
             text="↓ 아래 프롬프트를 '복사'해서 이미지 생성 AI에 붙여넣어 이미지를 요청하세요(매물명이 최상단에 포함됩니다).",
-            background="white",
-            foreground="#6b7780",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=780,
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(2, 0))
         self.copy_image_prompt_text = self._text_area(parent, height=10)
@@ -1578,11 +1482,11 @@ class BlogAutomationApp:
 
     def _image_pick_row(self, parent, row, label, var, command, url_command=None) -> None:
         ttk.Label(
-            parent, text=label, background="white", foreground=self.NAVY,
+            parent, text=label, background=C.SURFACE, foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10),
         ).grid(row=row, column=0, sticky="w", pady=2)
         ttk.Label(
-            parent, textvariable=var, background="white", foreground="#6b7780",
+            parent, textvariable=var, background=C.SURFACE, foreground=C.TEXT_MUTED,
             wraplength=240,
         ).grid(row=row, column=1, sticky="w", padx=(8, 8))
         button = ttk.Button(
@@ -1614,8 +1518,8 @@ class BlogAutomationApp:
             tk.Label(
                 win,
                 text=text,
-                background=self.NAVY,
-                foreground="white",
+                background=C.INK,
+                foreground=C.TEXT_ON_DARK,
                 wraplength=340,
                 justify="left",
                 padx=10,
@@ -1766,7 +1670,7 @@ class BlogAutomationApp:
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)
         env_canvas = tk.Canvas(
-            parent, background="white", highlightthickness=0
+            parent, background=C.SURFACE, highlightthickness=0
         )
         env_scroll = ttk.Scrollbar(
             parent, orient="vertical", command=env_canvas.yview
@@ -1853,8 +1757,8 @@ class BlogAutomationApp:
                 "비밀번호는 설정 파일에 기록하지 않으며, 보안 저장을 선택하면 "
                 "macOS Keychain 또는 Windows 자격 증명 저장소를 사용합니다."
             ),
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=350,
             justify="left",
         ).grid(row=4, column=0, sticky="w", pady=(0, 8))
@@ -1865,8 +1769,8 @@ class BlogAutomationApp:
         ttk.Label(
             publish_frame,
             text="포스팅 방식",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 3))
         ttk.Radiobutton(
@@ -1880,8 +1784,8 @@ class BlogAutomationApp:
         ttk.Label(
             publish_frame,
             text="발행 카테고리 (발행 시 필수 · 블로그의 카테고리 이름과 정확히 일치)",
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
         ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 2))
         ttk.Entry(
             publish_frame, textvariable=self.publish_category_var,
@@ -1890,8 +1794,8 @@ class BlogAutomationApp:
         ttk.Label(
             publish_frame,
             text="공개 범위 (발행 시 적용)",
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
         ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 2))
         ttk.Radiobutton(
             publish_frame, text="전체공개", value="public",
@@ -1909,8 +1813,8 @@ class BlogAutomationApp:
                 "입력해야 하며, 입력한 카테고리가 블로그에 없으면 발행하지 않고 "
                 "임시저장까지만 진행합니다. 처음엔 임시저장으로 확인 후 사용하세요."
             ),
-            background="white",
-            foreground="#9a6a2f",
+            background=C.SURFACE,
+            foreground=C.WARNING_TEXT,
             wraplength=350,
             justify="left",
         ).grid(row=6, column=0, sticky="w", pady=(0, 8))
@@ -1956,8 +1860,8 @@ class BlogAutomationApp:
                 "공인중개사법 표시·광고 규정 준수에 활용됩니다. 기본으로 표기되며, "
                 "위 체크를 해제하면 블로그에 중개사무소 정보를 올리지 않습니다."
             ),
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=350,
             justify="left",
         ).grid(row=footer_row + 1, column=0, sticky="w", pady=(8, 0))
@@ -1989,8 +1893,8 @@ class BlogAutomationApp:
         ttk.Label(
             api_frame,
             text="Google AI Studio API Key",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=0, column=0, sticky="w", pady=(0, 4))
         google_key_frame = ttk.Frame(api_frame, style="White.TFrame")
@@ -2070,8 +1974,8 @@ class BlogAutomationApp:
         ttk.Label(
             api_frame,
             textvariable=self.api_key_status_var,
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=350,
         ).grid(row=3, column=0, sticky="w", pady=(2, 6))
 
@@ -2141,8 +2045,8 @@ class BlogAutomationApp:
         ttk.Label(
             api_frame,
             textvariable=self.enrichment_key_status_var,
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=350,
         ).grid(row=11, column=0, sticky="w")
 
@@ -2150,8 +2054,8 @@ class BlogAutomationApp:
         ttk.Label(
             api_frame,
             text="AI 자동 글쓰기 엔진 (선택)",
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=12, column=0, sticky="w", pady=(12, 2))
         engine_row = ttk.Frame(api_frame, style="White.TFrame")
@@ -2168,8 +2072,8 @@ class BlogAutomationApp:
         ttk.Label(
             api_frame,
             textvariable=self.ai_model_info_var,
-            background="white",
-            foreground="#526574",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=350,
             justify="left",
         ).grid(row=14, column=0, sticky="w", pady=(2, 4))
@@ -2216,8 +2120,8 @@ class BlogAutomationApp:
                 "• 절대적인 0원 운영이 필요하면 결제가 연결되지 않은 무료 프로젝트의 "
                 "Google 키만 사용하거나 키를 비워 두세요. 이미지는 항상 로컬에서 생성합니다."
             ),
-            background="white",
-            foreground="#4b6070",
+            background=C.SURFACE,
+            foreground=C.TEXT_MUTED,
             wraplength=760,
             justify="left",
         ).grid(row=0, column=0, sticky="w")
@@ -2236,8 +2140,8 @@ class BlogAutomationApp:
         ttk.Label(
             parent,
             text=label,
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=row, column=0, sticky="w", pady=(0 if slot == 0 else 9, 3))
         entry_frame = ttk.Frame(parent, style="White.TFrame")
@@ -2280,15 +2184,15 @@ class BlogAutomationApp:
         ttk.Label(
             frame,
             text=left_label,
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=0, column=0, sticky="w", pady=(0, 3))
         ttk.Label(
             frame,
             text=right_label,
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=0, column=1, sticky="w", padx=(8, 0), pady=(0, 3))
         left_entry = ttk.Entry(
@@ -2334,9 +2238,9 @@ class BlogAutomationApp:
             font=("Apple SD Gothic Neo", 11),
             padx=10,
             pady=9,
-            background="#fbfcfd",
-            foreground="#26343c",
-            insertbackground="#26343c",
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
+            insertbackground=C.TEXT_STRONG,
         )
 
     def _configure_copy_shortcuts(self) -> None:
@@ -2499,8 +2403,8 @@ class BlogAutomationApp:
         ttk.Label(
             parent,
             text=label,
-            background="white",
-            foreground=self.NAVY,
+            background=C.SURFACE,
+            foreground=C.TEXT_STRONG,
             font=("Apple SD Gothic Neo", 10, "bold"),
         ).grid(row=row, column=0, sticky="w", pady=(0, 4))
         frame = ttk.Frame(parent, style="White.TFrame")
@@ -3568,11 +3472,11 @@ class BlogAutomationApp:
         self._append_log(message)
         for index, label in enumerate(self.step_labels, start=1):
             if index < step:
-                label.configure(foreground=self.GREEN)
+                label.configure(foreground=C.SUCCESS_TEXT)
             elif index == step:
-                label.configure(foreground=self.BLUE)
+                label.configure(foreground=C.CORAL_DEEP)
             else:
-                label.configure(foreground="#75838d")
+                label.configure(foreground=C.TEXT_FAINT)
 
     def _show_result(self, result: WorkflowResult) -> None:
         # 로컬 이미지 생성처럼 탭을 유지하는 작업은 대표 이미지만 갱신하고,
