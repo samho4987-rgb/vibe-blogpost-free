@@ -14,5 +14,5 @@
   3) GitHub에서 같은 버전 태그(예: v1.0.1)로 Release를 만들고 그 zip을 첨부한다.
 """
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 GITHUB_REPO = "samho4987-rgb/vibe-blogpost-free"

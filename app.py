@@ -117,6 +117,13 @@ from naver_blog_automation.settings import (
     DEFAULT_IMAGE_PROMPT,
     DEFAULT_WRITING_PROMPT,
 )
+from naver_blog_automation.thumbnail import (
+    COLOR_PRESETS,
+    TEMPLATE_LABELS,
+    apply_color_preset_to_prompt,
+    apply_template_to_prompt,
+    parse_template,
+)
 from naver_blog_automation.workflow import BlogAutomationWorkflow
 
 
@@ -173,7 +180,9 @@ class BlogAutomationApp:
         self.action_buttons: list[ttk.Button] = []
         self.draft_browser_open = False
 
-        self.root.title("네이버 블로그 매물 포스팅 자동화")
+        from naver_blog_automation.version import APP_VERSION
+
+        self.root.title(f"네이버 블로그 매물 포스팅 자동화  v{APP_VERSION}")
         self.root.geometry("1240x840")
         self.root.minsize(1050, 720)
         self.root.configure(bg=self.BG)
@@ -767,27 +776,86 @@ class BlogAutomationApp:
 
         image_tab.columnconfigure(0, weight=1)
         image_tab.columnconfigure(1, weight=1)
-        image_tab.rowconfigure(1, weight=1)
+        image_tab.rowconfigure(2, weight=1)
         ttk.Label(
             image_tab,
             text=(
-                "색상과 표시 순서를 자유롭게 수정할 수 있습니다. "
-                "이미지는 Google/Gemini 호출 없이 로컬에서 1:1 PNG로 생성됩니다."
+                "디자인 템플릿을 고르고 색상·표시 순서를 자유롭게 수정할 수 있습니다. "
+                "기본은 Google/Gemini 호출 없이 로컬에서 1:1 PNG로 생성되며, "
+                "본문 카드 이미지(핵심정보·입지·체크포인트)도 함께 만들어집니다."
             ),
             background="white",
             foreground="#526574",
             wraplength=760,
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        template_bar = ttk.Frame(image_tab, style="White.TFrame")
+        template_bar.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ttk.Label(
+            template_bar,
+            text="디자인 템플릿",
+            background="white",
+        ).pack(side="left")
+        self.image_template_var = tk.StringVar(
+            value=TEMPLATE_LABELS.get(
+                parse_template(self.settings.image_prompt), "클래식"
+            )
+        )
+        self.image_template_combo = ttk.Combobox(
+            template_bar,
+            textvariable=self.image_template_var,
+            values=list(TEMPLATE_LABELS.values()),
+            state="readonly",
+            width=10,
+        )
+        self.image_template_combo.pack(side="left", padx=(8, 0))
+        self.image_template_combo.bind(
+            "<<ComboboxSelected>>", self._on_image_template_selected
+        )
+        ttk.Label(
+            template_bar,
+            text="색상 프리셋",
+            background="white",
+        ).pack(side="left", padx=(16, 0))
+        self.image_preset_var = tk.StringVar(value="템플릿 기본")
+        self.image_preset_combo = ttk.Combobox(
+            template_bar,
+            textvariable=self.image_preset_var,
+            values=["템플릿 기본", *COLOR_PRESETS.keys()],
+            state="readonly",
+            width=12,
+        )
+        self.image_preset_combo.pack(side="left", padx=(8, 0))
+        self.image_preset_combo.bind(
+            "<<ComboboxSelected>>", self._on_image_preset_selected
+        )
+        option_bar = ttk.Frame(image_tab, style="White.TFrame")
+        option_bar.grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        self.auto_body_cards_var = tk.BooleanVar(
+            value=self.settings.auto_body_cards
+        )
+        ttk.Checkbutton(
+            option_bar,
+            text="자동 생성한 본문 카드를 포스팅에 사용(직접 첨부 이미지가 있으면 그쪽 우선)",
+            variable=self.auto_body_cards_var,
+        ).pack(side="left")
+        self.thumbnail_branding_var = tk.BooleanVar(
+            value=self.settings.thumbnail_branding
+        )
+        ttk.Checkbutton(
+            option_bar,
+            text="사무소명·연락처를 썸네일에 표시(환경설정의 중개사무소 정보 사용)",
+            variable=self.thumbnail_branding_var,
+        ).pack(side="left", padx=(18, 0))
         self.image_prompt_text = self._text_area(image_tab)
         self.image_prompt_text.insert("1.0", self.settings.image_prompt)
         self.image_prompt_text.grid(
-            row=1,
+            row=2,
             column=0,
             sticky="nsew",
             padx=(0, 8),
         )
         image_preview_frame = ttk.Frame(image_tab, style="White.TFrame")
-        image_preview_frame.grid(row=1, column=1, sticky="nsew")
+        image_preview_frame.grid(row=2, column=1, sticky="nsew")
         image_preview_frame.columnconfigure(0, weight=1)
         image_preview_frame.rowconfigure(0, weight=1)
         self.image_preview_label = tk.Label(
@@ -809,7 +877,7 @@ class BlogAutomationApp:
         ).grid(row=1, column=0, sticky="ew", pady=(8, 0))
         image_buttons = ttk.Frame(image_tab, style="White.TFrame")
         image_buttons.grid(
-            row=2,
+            row=4,
             column=0,
             columnspan=2,
             sticky="e",
@@ -832,16 +900,25 @@ class BlogAutomationApp:
         # 무료 로컬(Pillow) 대표 이미지 생성 — 외부 AI 없이 쓰고 싶을 때의 대체 경로
         self.image_button = ttk.Button(
             image_buttons,
-            text="로컬 이미지 생성(선택)",
+            text="로컬 이미지 생성(무료)",
             command=self._generate_image,
             style="Secondary.TButton",
         )
         self.image_button.pack(side="left", padx=(8, 0))
+        # 선택: Gemini 이미지 모델로 생성(GEMINI_IMAGE_MODEL 설정 시에만 동작).
+        self.ai_image_button = ttk.Button(
+            image_buttons,
+            text="AI 이미지 생성(선택)",
+            command=self._generate_image_ai,
+            style="Secondary.TButton",
+        )
+        self.ai_image_button.pack(side="left", padx=(8, 0))
         self.action_buttons.extend(
             [
                 self.image_prompt_reset_button,
                 self.image_prompt_save_button,
                 self.image_button,
+                self.ai_image_button,
             ]
         )
 
@@ -2481,6 +2558,12 @@ class BlogAutomationApp:
         self.settings.auto_curl_refresh = bool(
             self.auto_curl_refresh_var.get()
         )
+        self.settings.auto_body_cards = bool(
+            self.auto_body_cards_var.get()
+        )
+        self.settings.thumbnail_branding = bool(
+            self.thumbnail_branding_var.get()
+        )
         self.settings.publish_mode = (
             self.publish_mode_var.get() or "draft"
         ).strip()
@@ -3057,7 +3140,51 @@ class BlogAutomationApp:
             lambda: workflow.generate_content(self.last_result),
         )
 
-    def _generate_image(self) -> None:
+    def _on_image_template_selected(self, _event: object = None) -> None:
+        """콤보박스에서 고른 템플릿을 이미지 프롬프트에 반영한다."""
+        label = self.image_template_var.get().strip()
+        key = next(
+            (k for k, v in TEMPLATE_LABELS.items() if v == label),
+            "classic",
+        )
+        prompt = self.image_prompt_text.get("1.0", "end").strip() or DEFAULT_IMAGE_PROMPT
+        updated = apply_template_to_prompt(prompt, key)
+        self._replace_text(self.image_prompt_text, updated)
+        self.status_var.set(
+            f"이미지 템플릿을 '{label}'(으)로 바꿨습니다. "
+            "'로컬 이미지 생성'을 눌러 새 디자인을 확인하세요."
+        )
+        self._append_log(f"이미지 템플릿 변경: {label}")
+
+    def _on_image_preset_selected(self, _event: object = None) -> None:
+        """색상 프리셋(강조 금색 유지·배경 교체)을 이미지 프롬프트에 반영한다."""
+        preset = self.image_preset_var.get().strip()
+        if preset not in COLOR_PRESETS:
+            return
+        prompt = self.image_prompt_text.get("1.0", "end").strip() or DEFAULT_IMAGE_PROMPT
+        updated = apply_color_preset_to_prompt(prompt, preset)
+        self._replace_text(self.image_prompt_text, updated)
+        self.status_var.set(
+            f"색상 프리셋 '{preset}'을(를) 적용했습니다. "
+            "'로컬 이미지 생성'을 눌러 확인하세요."
+        )
+        self._append_log(f"이미지 색상 프리셋 적용: {preset}")
+
+    def _generate_image_ai(self) -> None:
+        """Gemini 이미지 모델(선택·유료 가능)로 대표 이미지를 생성한다."""
+        if not self.settings.gemini_api_key or not self.settings.image_model:
+            messagebox.showinfo(
+                "AI 이미지 설정 필요",
+                "AI 이미지 생성은 선택 기능입니다.\n\n"
+                "1) 환경설정에서 Google AI Studio API Key를 저장하고\n"
+                "2) .env 파일에 GEMINI_IMAGE_MODEL=모델이름 "
+                "(예: gemini-2.5-flash-image)을 추가한 뒤 프로그램을 다시 실행하세요.\n\n"
+                "설정하지 않아도 '로컬 이미지 생성(무료)'으로 계속 사용할 수 있습니다.",
+            )
+            return
+        self._generate_image(engine="ai")
+
+    def _generate_image(self, engine: str = "local") -> None:
         if self.last_result is None:
             messagebox.showinfo(
                 "매물정보 필요",
@@ -3072,14 +3199,19 @@ class BlogAutomationApp:
             )
             return
         self._apply_form_settings()
-        workflow = self._workflow(offline=True)
+        # AI 이미지 생성은 온라인 에이전트가 필요하고, 로컬 생성은 오프라인으로 충분하다.
+        workflow = self._workflow(offline=(engine != "ai"))
 
         def generate() -> WorkflowResult:
-            workflow.generate_image(self.last_result, prompt=prompt)
+            workflow.generate_image(self.last_result, prompt=prompt, engine=engine)
             return self.last_result
 
         self._run_task(
-            "비용 없는 로컬 방식으로 대표 이미지를 생성하고 있습니다…",
+            (
+                "Gemini 이미지 모델로 대표 이미지를 생성하고 있습니다…"
+                if engine == "ai"
+                else "비용 없는 로컬 방식으로 대표 이미지·본문 카드를 생성하고 있습니다…"
+            ),
             generate,
             switch_result_tab=False,
         )
@@ -3195,6 +3327,18 @@ class BlogAutomationApp:
         body_image_paths = [
             path for path in self.selected_body_image_paths if path
         ]
+        # 직접 첨부한 본문 이미지가 없으면, 자동 생성한 본문 카드(핵심정보·입지·
+        # 체크포인트)를 사용한다(이미지 탭 체크박스로 끌 수 있음).
+        if not body_image_paths and self.auto_body_cards_var.get():
+            body_image_paths = [
+                path
+                for path in (self.last_result.body_card_paths or [])
+                if path and Path(path).exists()
+            ]
+            if body_image_paths:
+                self._append_log(
+                    f"자동 생성한 본문 카드 {len(body_image_paths)}장을 본문에 첨부합니다."
+                )
         workflow = self._workflow()
         self._run_task(
             "네이버 블로그에 임시저장하고 있습니다…",

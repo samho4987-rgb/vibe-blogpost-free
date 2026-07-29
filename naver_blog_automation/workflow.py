@@ -16,11 +16,17 @@ from .ai_agent import (
 from .content_writer import write_blog_file
 from .credentials import save_property_curl
 from .enrichment import PropertyDataEnricher
-from .models import BlogContent, WorkflowResult
+from .models import BlogContent, WorkflowResult, thumbnail_title
 from .naver_blog import NaverBlogPoster
 from .property_fetcher import PropertyFetcher
 from .settings import AppSettings
-from .thumbnail import create_demo_thumbnail, create_support_images
+from .body_cards import create_body_cards
+from .thumbnail import (
+    TEMPLATE_LABELS,
+    create_demo_thumbnail,
+    create_support_images,
+    parse_template,
+)
 
 
 ProgressCallback = Callable[[int, str], None]
@@ -85,7 +91,10 @@ class BlogAutomationWorkflow:
         return ContentAgent(
             api_key="" if offline else self.settings.gemini_api_key,
             text_model=self.settings.text_model,
-            image_model="",
+            # 기본 흐름은 여전히 로컬(무료) 이미지 생성이며, image_model은
+            # 사용자가 GEMINI_IMAGE_MODEL을 설정하고 'AI 이미지 생성'을 눌렀을
+            # 때만 사용된다(하이브리드).
+            image_model="" if offline else self.settings.image_model,
             tone_guide=self.settings.tone_guide,
             writing_prompt=self.settings.writing_prompt,
             phone_number=self.settings.phone_number,
@@ -277,10 +286,20 @@ class BlogAutomationWorkflow:
         result: WorkflowResult,
         *,
         prompt: str = "",
+        engine: str = "local",
+        with_body_cards: bool = True,
     ) -> Path:
-        """외부 이미지 API 없이 Pillow로 1:1 대표 이미지를 만든다."""
-        self._notify(3, "비용 없는 로컬 방식으로 1:1 대표 이미지를 만듭니다.")
+        """대표 이미지(1:1)와 본문 카드 이미지를 만든다.
+
+        - engine="local"(기본): 외부 API 없이 Pillow로 그린다(비용 없음).
+          이미지 프롬프트의 '템플릿:' 줄로 디자인(클래식/모던/볼드/포토)을 고른다.
+        - engine="ai": GEMINI_IMAGE_MODEL과 API 키가 설정된 경우에만 Gemini
+          이미지 모델을 호출하고, 실패하면 로컬 방식으로 자동 대체한다.
+        - 본문 카드는 항상 로컬(무료)로 만들며, 실패해도 대표 이미지 생성을
+          막지 않는다.
+        """
         active_prompt = prompt.strip() or self.settings.image_prompt
+        template = parse_template(active_prompt)
         safe_article = _safe_name(result.property_info.article_no)
         fixed_path = (
             self.settings.output_dir
@@ -288,23 +307,90 @@ class BlogAutomationWorkflow:
             / f"thumbnail_{safe_article}.png"
         )
         property_info = result.property_info
-        create_demo_thumbnail(
-            fixed_path,
-            property_info.complex_name or property_info.name,
-            property_info.address,
-            _thumbnail_detail(
-                property_info.price,
-                property_info.area,
-                property_info.trade_type,
-            ),
-            active_prompt,
-            self.settings.project_root / "templates" / "썸네일가이드.png",
-        )
+        ai_done = False
+        if engine == "ai":
+            if self.settings.gemini_api_key and self.settings.image_model:
+                self._notify(
+                    3,
+                    f"Gemini 이미지 모델({self.settings.image_model})로 대표 이미지를 "
+                    "생성합니다. (API 사용량이 소모될 수 있습니다)",
+                )
+                try:
+                    agent = self._agent()
+                    agent.generate_thumbnail(result.content, property_info, fixed_path)
+                    ai_done = True
+                except Exception as error:  # noqa: BLE001 - 실패 시 로컬 대체
+                    self._notify(
+                        3,
+                        "AI 이미지 생성에 실패해 로컬(무료) 방식으로 대체합니다. "
+                        f"({error})",
+                    )
+            else:
+                self._notify(
+                    3,
+                    "AI 이미지 생성을 사용하려면 Google AI Studio API Key와 "
+                    "GEMINI_IMAGE_MODEL 설정이 필요합니다. 로컬(무료) 방식으로 "
+                    "생성합니다.",
+                )
+        if not ai_done:
+            self._notify(
+                3,
+                "비용 없는 로컬 방식으로 1:1 대표 이미지를 만듭니다. "
+                f"(템플릿: {TEMPLATE_LABELS.get(template, '클래식')})",
+            )
+            # 브랜드 요소(선택): 환경설정의 사무소명·전화를 썸네일에 표시해
+            # 블로그 목록에서 우리 사무소 글이라는 통일감을 만든다.
+            brand_name = ""
+            brand_contact = ""
+            if self.settings.thumbnail_branding:
+                brand_name = (self.settings.realtor_office_name or "").strip()
+                brand_contact = (
+                    self.settings.realtor_office_phone
+                    or self.settings.realtor_office_mobile
+                    or self.settings.phone_number
+                    or ""
+                ).strip()
+            create_demo_thumbnail(
+                fixed_path,
+                thumbnail_title(property_info),
+                property_info.address,
+                _thumbnail_detail(
+                    property_info.price,
+                    property_info.area,
+                    property_info.trade_type,
+                ),
+                active_prompt,
+                self.settings.resource_root / "templates" / "썸네일가이드.png",
+                template=template,
+                brand_name=brand_name,
+                brand_contact=brand_contact,
+            )
         run_thumbnail = Path(result.output_dir) / "thumbnail.png"
         run_thumbnail.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(fixed_path, run_thumbnail)
         result.thumbnail_path = str(fixed_path)
         result.content.image_prompt = active_prompt
+
+        # 본문 카드 이미지(핵심정보·입지·체크포인트)도 같은 템플릿 톤으로 준비한다.
+        if with_body_cards:
+            try:
+                cards = create_body_cards(
+                    Path(result.output_dir) / "body_cards",
+                    property_info,
+                    nearby=result.nearby_places,
+                    design_prompt=active_prompt,
+                    template=template,
+                )
+                result.body_card_paths = [str(card) for card in cards]
+                if cards:
+                    self._notify(
+                        3,
+                        f"본문 카드 이미지 {len(cards)}장을 만들었습니다. "
+                        "포스팅 시 본문에 자동 첨부됩니다(직접 첨부한 이미지가 있으면 그쪽 우선).",
+                    )
+            except Exception:  # noqa: BLE001 - 카드 없이도 진행
+                self._notify(3, "본문 카드 이미지 생성을 건너뜁니다(오류).")
+
         if result.blog_markdown_path:
             self.sync_content(result)
         self._save_result(result)
@@ -356,7 +442,7 @@ class BlogAutomationWorkflow:
         package = (self.settings.icon_package or "").strip()
         if not package:
             return None
-        candidate = self.settings.project_root / "templates" / "icons" / package
+        candidate = self.settings.resource_root / "templates" / "icons" / package
         return candidate if candidate.is_dir() else None
 
     def save_draft(
@@ -378,7 +464,7 @@ class BlogAutomationWorkflow:
         self._apply_realtor_identity(result.property_info)
         blog_path = self.sync_content(result)
         warning_image = create_support_images(
-            self.settings.project_root / "templates",
+            self.settings.resource_root / "templates",
         )
         poster = NaverBlogPoster(
             profile_dir=self.settings.browser_profile_dir,

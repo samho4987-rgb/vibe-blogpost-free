@@ -15,7 +15,7 @@ from .content_writer import (
     MANDATORY_INQUIRY_TEXT,
     ensure_inquiry_section,
 )
-from .models import BlogContent, PropertyInfo
+from .models import BlogContent, PropertyInfo, thumbnail_title
 from .settings import DEFAULT_WRITING_PROMPT
 from .thumbnail import create_demo_thumbnail
 
@@ -719,7 +719,7 @@ class ContentAgent:
             )
             return create_demo_thumbnail(
                 target,
-                property_info.name,
+                thumbnail_title(property_info),
                 property_info.address,
                 detail,
             )
@@ -739,7 +739,8 @@ class ContentAgent:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(aspect_ratio="3:2"),
+                    # 네이버 블로그 대표 이미지 규격(로컬 썸네일과 동일한 1:1).
+                    image_config=types.ImageConfig(aspect_ratio="1:1"),
                 ),
             )
             image_bytes: bytes | None = None

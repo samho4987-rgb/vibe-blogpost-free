@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,42 @@ from urllib.parse import quote
 import yaml
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+def _resource_root() -> Path:
+    """읽기전용 번들 자원(templates·셀렉터·샘플 등 기본 파일)의 루트.
+
+    - 설치형(exe): PyInstaller가 풀어놓은 위치(sys._MEIPASS) 또는 실행파일 폴더.
+    - 소스 실행: 프로젝트 루트.
+    """
+    if getattr(sys, "frozen", False):
+        base = getattr(sys, "_MEIPASS", "")
+        if base:
+            return Path(base)
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+def _data_root() -> Path:
+    """사용자 데이터(설정·로그인 세션·생성물)를 저장하는 쓰기 가능 루트.
+
+    설치형(exe)은 프로그램이 읽기전용 폴더(Program Files 등)에 깔릴 수 있으므로,
+    사용자별 폴더(%LOCALAPPDATA%\\vibe-blogpost-free)에 저장한다. 이렇게 하면
+    재설치·업데이트에도 로그인 세션과 환경설정이 그대로 보존된다.
+    소스 실행에서는 기존처럼 프로젝트 루트를 그대로 쓴다.
+    """
+    if getattr(sys, "frozen", False):
+        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        root = Path(base) / "vibe-blogpost-free"
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            root = Path(sys.executable).resolve().parent
+        return root
+    return Path(__file__).resolve().parent.parent
+
+
+# 읽기전용 자원 루트(번들)와 쓰기 가능한 사용자 데이터 루트를 분리한다.
+RESOURCE_ROOT = _resource_root()
+PROJECT_ROOT = _data_root()
 
 
 def _non_negative_env_float(name: str, default: float) -> float:
@@ -123,6 +159,8 @@ DEFAULT_WRITING_PROMPT = """
 DEFAULT_IMAGE_PROMPT = """
 로컬 1:1 네이버 블로그 매물 썸네일
 
+템플릿: 클래식
+
 배경색: #10283D
 테두리색: #36536A
 지역명 색상: #C7CED4
@@ -136,17 +174,21 @@ DEFAULT_IMAGE_PROMPT = """
 3. 아파트·매물명
 4. 거래유형·가격·평형
 
-수집된 매물정보만 사용하고 확인되지 않은 문구, 로고, 워터마크는 넣지 않습니다.
+- 템플릿은 클래식 / 모던 / 볼드 / 포토 중에서 고를 수 있습니다.
+  (포토 템플릿은 templates/썸네일가이드.png 사진을 배경으로 사용합니다)
+- 색상 줄을 지우면 템플릿 기본 색을 사용하고, 남겨 두면 그 색이 우선합니다.
+- 수집된 매물정보만 사용하고 확인되지 않은 문구, 로고, 워터마크는 넣지 않습니다.
 """.strip()
 
 
 @dataclass(slots=True)
 class AppSettings:
-    project_root: Path = PROJECT_ROOT
+    project_root: Path = PROJECT_ROOT              # 쓰기 가능한 사용자 데이터 루트
+    resource_root: Path = RESOURCE_ROOT            # 읽기전용 번들 자원 루트
     output_dir: Path = PROJECT_ROOT / "output"
     browser_profile_dir: Path = PROJECT_ROOT / "data" / "browser-profile"
-    selector_path: Path = PROJECT_ROOT / "config" / "blog_selectors.yaml"
-    sample_property_path: Path = PROJECT_ROOT / "config" / "sample_property.json"
+    selector_path: Path = RESOURCE_ROOT / "config" / "blog_selectors.yaml"
+    sample_property_path: Path = RESOURCE_ROOT / "config" / "sample_property.json"
     gemini_api_key: str = ""
     kakao_rest_api_key: str = ""
     kakao_javascript_key: str = ""
@@ -176,6 +218,12 @@ class AppSettings:
     realtor_office_address: str = ""    # 소재지(주소)
     realtor_footer_enabled: bool = True  # 중개사무소 정보를 블로그에 표기할지 (기본 표기)
     icon_package: str = "icon1"  # 본문 섹션 아이콘 묶음(templates/icons 하위 폴더). ""=사용 안 함
+    # 자동 생성한 본문 카드 이미지(핵심정보·입지·체크포인트)를 포스팅에 사용할지.
+    # 직접 첨부한 본문 이미지가 있으면 언제나 그쪽이 우선한다.
+    auto_body_cards: bool = True
+    # 썸네일에 사무소명(상단)·연락처(하단)를 표시할지 — 블로그 목록의 브랜드 통일감.
+    # 환경설정의 중개사무소 정보(상호·전화)를 그대로 사용한다.
+    thumbnail_branding: bool = True
     auto_curl_refresh: bool = True  # 매물 API 차단 시 창 없이 토큰·쿠키를 자동 갱신할지
     my_listings_dir: str = ""  # 내 매물 CSV가 있는 폴더(첫 화면 리스트에 사용)
     publish_mode: str = "draft"          # "draft"=임시저장, "publish"=발행까지
@@ -263,6 +311,10 @@ class AppSettings:
                     ]
                 if isinstance(saved.get("auto_curl_refresh"), bool):
                     settings.auto_curl_refresh = saved["auto_curl_refresh"]
+                if isinstance(saved.get("auto_body_cards"), bool):
+                    settings.auto_body_cards = saved["auto_body_cards"]
+                if isinstance(saved.get("thumbnail_branding"), bool):
+                    settings.thumbnail_branding = saved["thumbnail_branding"]
                 if saved.get("account_source") == "user_input":
                     if isinstance(saved.get("naver_login_id"), str):
                         settings.naver_login_id = saved[
@@ -354,6 +406,8 @@ class AppSettings:
             "realtor_footer_enabled": self.realtor_footer_enabled,
             "icon_package": self.icon_package,
             "auto_curl_refresh": self.auto_curl_refresh,
+            "auto_body_cards": self.auto_body_cards,
+            "thumbnail_branding": self.thumbnail_branding,
             "my_listings_dir": self.my_listings_dir,
             "publish_mode": self.publish_mode,
             "publish_category": self.publish_category,
@@ -551,6 +605,7 @@ class AppSettings:
     def public_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["project_root"] = str(self.project_root)
+        data["resource_root"] = str(self.resource_root)
         data["output_dir"] = str(self.output_dir)
         data["browser_profile_dir"] = str(self.browser_profile_dir)
         data["selector_path"] = str(self.selector_path)

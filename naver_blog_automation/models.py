@@ -117,6 +117,66 @@ def floor_band(floor: Any) -> str:
     return text
 
 
+def thumbnail_title(info: "PropertyInfo") -> str:
+    """대표 이미지(썸네일)·본문 카드용 제목 규칙.
+
+    카테고리마다 수집되는 이름의 성격이 달라(아파트=단지명, 빌라=건물명,
+    단독·토지=이름 없음) 하나의 필드만 믿으면 '1동'·'정보 없음' 같은 값이
+    이미지에 그대로 인쇄된다. 아래 우선순위로 항상 사람이 읽을 제목을 만든다.
+
+    1) 유효한 단지·건물명 — 단독 'N동'은 제외하고, 끝의 동 표기는 떼어낸다
+       (예: '진주빌라 1동' → '진주빌라').
+    2) 광고 제목 — 유형명('원룸', '단독/다가구' 등)을 그대로 반복한 것이 아니면 사용.
+    3) 지역 + 유형 — 주소의 마지막 행정단위와 매물 유형을 조합
+       (예: '장안읍 단독·다가구'). 수집된 사실만 조합하며 수식어는 붙이지 않는다.
+    4) 전부 없으면 '매물 정보 확인'.
+    """
+
+    def _valid(text: str) -> str:
+        cleaned = _clean_null(text)
+        if not cleaned or cleaned in {"정보 없음", "-"}:
+            return ""
+        stripped = strip_dong(cleaned)
+        return stripped
+
+    property_type = _clean_null(getattr(info, "property_type", ""))
+    if property_type in {"정보 없음", "-"}:
+        property_type = ""
+
+    # 1) 단지·건물명 (complex_name → name 순서, 'N동' 방어 포함)
+    for candidate in (
+        getattr(info, "complex_name", ""),
+        getattr(info, "name", ""),
+    ):
+        resolved = _valid(candidate)
+        if resolved:
+            # name이 유형명을 그대로 반복한 경우('원룸' 등)는 2·3단계로 넘긴다.
+            if property_type and resolved.replace(" ", "") == property_type.replace(" ", ""):
+                continue
+            return resolved
+
+    # 2) 광고 제목 (유형명 반복이 아니면)
+    listing = _valid(getattr(info, "listing_title", ""))
+    if listing and (
+        not property_type
+        or listing.replace(" ", "") != property_type.replace(" ", "")
+    ):
+        return listing
+
+    # 3) 지역 + 유형
+    address = _clean_null(getattr(info, "address", ""))
+    region = ""
+    if address and address != "정보 없음":
+        region = address.split()[-1]
+    type_label = property_type.replace("/", "·")
+    combined = " ".join(part for part in (region, type_label) if part)
+    if combined:
+        return combined
+
+    # 4) 최종 대체 — '정보 없음'을 이미지에 인쇄하지 않는다.
+    return "매물 정보 확인"
+
+
 def _price(payload: Mapping[str, Any]) -> str:
     """가격. 월세면 '보증금/월세'로 표기(네이버는 보증금만 dealOrWarrantPrc에 담음)."""
     trade = _text(_deep_find(payload, ("tradeTypeName", "tradeType", "dealType")), "")
@@ -408,6 +468,7 @@ class WorkflowResult:
     research: str
     content: BlogContent
     thumbnail_path: str | None
+    body_card_paths: list[str] = field(default_factory=list)
     map_image_path: str | None = None
     map_url: str = ""
     roadview_url: str = ""
@@ -428,6 +489,7 @@ class WorkflowResult:
             "research": self.research,
             "content": self.content.to_dict(),
             "thumbnail_path": self.thumbnail_path,
+            "body_card_paths": self.body_card_paths,
             "map_image_path": self.map_image_path,
             "map_url": self.map_url,
             "roadview_url": self.roadview_url,
