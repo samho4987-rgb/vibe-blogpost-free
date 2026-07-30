@@ -17,6 +17,11 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# 2026-07-30 코어 분리 — 패키지·templates·번들 config 는 형제 폴더 vibe-blogcore 에 있다.
+# 배포 zip 은 예전처럼 '자기완결'로 만든다: 코어 쪽 파일을 zip 루트에 그대로 담으면
+# 사용자 PC 에서는 분리 전과 동일한 구조로 동작한다(app.py 부트스트랩은 코어 폴더가
+# 없으면 아무것도 하지 않는다).
+CORE_ROOT = ROOT.parent / "vibe-blogcore"
 RELEASE_NAME = "네이버블로그매물자동화_배포"
 OUT_DIR = ROOT / "release"
 STAGE = OUT_DIR / RELEASE_NAME
@@ -73,6 +78,8 @@ NEVER_INCLUDE = {
 def _copy_file(rel: str) -> bool:
     src = ROOT / rel
     if not src.exists():
+        src = CORE_ROOT / rel  # 코어 분리분(번들 자원)은 vibe-blogcore 에서
+    if not src.exists():
         print(f"  (건너뜀, 없음) {rel}")
         return False
     dst = STAGE / rel
@@ -83,16 +90,20 @@ def _copy_file(rel: str) -> bool:
 
 
 def _copy_dir(rel: str) -> None:
-    src = ROOT / rel
+    base = ROOT
+    src = base / rel
+    if not src.is_dir():
+        base = CORE_ROOT  # 코어 분리분(naver_blog_automation·templates)
+        src = base / rel
     if not src.is_dir():
         print(f"  (건너뜀, 없음) {rel}/")
         return
     for path in src.rglob("*"):
-        if any(part in EXCLUDE_NAMES for part in path.relative_to(ROOT).parts):
+        if any(part in EXCLUDE_NAMES for part in path.relative_to(base).parts):
             continue
         if path.is_dir():
             continue
-        rel_path = path.relative_to(ROOT)
+        rel_path = path.relative_to(base)
         dst = STAGE / rel_path
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, dst)

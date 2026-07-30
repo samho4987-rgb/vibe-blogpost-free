@@ -46,6 +46,29 @@ def _ensure_venv_python() -> None:
 _ensure_venv_python()
 
 
+def _bootstrap_core() -> None:
+    """공용 백엔드(vibe-blogcore)를 임포트 경로에 올린다.
+
+    2026-07-30 코어 분리: naver_blog_automation 패키지·tests·templates·
+    번들 자원 config 는 ../vibe-blogcore/ 로 이동했고 무료판·프로판이 같은
+    정본을 쓴다. 사용자 데이터(user_settings.json·settings.yaml·.env·output·
+    data)는 계속 이 폴더에 있으며 VIBE_BLOG_DATA_ROOT 로 고정한다.
+    번들(exe)은 PyInstaller 가 패키지를 함께 얼려 넣으므로 아무것도 안 한다."""
+    import os
+    import sys as _sys
+
+    if getattr(_sys, "frozen", False):
+        return
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    os.environ.setdefault("VIBE_BLOG_DATA_ROOT", app_root)
+    core = os.path.abspath(os.path.join(app_root, os.pardir, "vibe-blogcore"))
+    if os.path.isdir(core) and core not in _sys.path:
+        _sys.path.insert(0, core)
+
+
+_bootstrap_core()
+
+
 def _apply_pending_update() -> None:
     """앱 로딩 전에, 받아둔 업데이트(zip)가 있으면 적용하고 새 코드로 재시작한다.
 
