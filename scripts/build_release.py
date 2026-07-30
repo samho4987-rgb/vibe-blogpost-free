@@ -31,6 +31,7 @@ INCLUDE_FILES = [
     "README.md",
     "사용설명서.md",
     "빠른시작.html",
+    "사용설명서.html",
     ".env.example",
     "config/blog_selectors.yaml",
     "config/sample_property.json",

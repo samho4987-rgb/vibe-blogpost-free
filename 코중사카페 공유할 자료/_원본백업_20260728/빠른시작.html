@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>빠른 시작 — 네이버 블로그 매물 자동화</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    background: #f4f6f8; color: #1c2b36; line-height: 1.65;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+  header {
+    background: linear-gradient(135deg, #10283d, #23506a);
+    color: #fff; border-radius: 18px; padding: 32px 28px; margin-bottom: 28px;
+  }
+  header h1 { margin: 0 0 8px; font-size: 24px; }
+  header p { margin: 0; opacity: .9; font-size: 15px; }
+  .os { display: flex; gap: 12px; margin: 22px 0 8px; flex-wrap: wrap; }
+  .os span {
+    background: #eaf0f4; border: 1px solid #d5dee5; border-radius: 999px;
+    padding: 6px 14px; font-size: 14px; font-weight: 600; color: #23506a;
+  }
+  .step {
+    background: #fff; border: 1px solid #e2e8ee; border-radius: 14px;
+    padding: 20px 22px; margin: 14px 0; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .num {
+    flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%;
+    background: #23506a; color: #fff; font-weight: 700; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step h3 { margin: 2px 0 6px; font-size: 17px; }
+  .step p { margin: 0; font-size: 15px; color: #3d4d59; }
+  .step code {
+    background: #eef3f6; padding: 2px 7px; border-radius: 6px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px; color: #1a3a52;
+  }
+  h2 { font-size: 18px; margin: 34px 0 10px; color: #10283d; }
+  .note {
+    background: #fff8e8; border: 1px solid #f0dcae; border-radius: 12px;
+    padding: 16px 18px; font-size: 14.5px; color: #6b5320; margin: 12px 0;
+  }
+  .tip { background: #eef7f0; border-color: #cfe6d5; color: #2c5738; }
+  .foot { text-align: center; color: #8595a1; font-size: 13px; margin-top: 40px; }
+  b { color: #10283d; }
+  .flowbox {
+    background: #f2f6fa; border: 1px solid #dbe4ec; border-radius: 12px;
+    padding: 6px 20px 12px; margin: 12px 0 4px;
+  }
+  .flowbox h4 { margin: 14px 0 4px; font-size: 14.5px; color: #23506a; }
+  ol.flow { margin: 6px 0 0; padding-left: 20px; }
+  ol.flow li { margin: 9px 0; font-size: 14.5px; color: #33424e; }
+  .opt { font-size: 12px; font-weight: 700; color: #8a95a0; }
+  .field {
+    background: #fff; border: 1px solid #e2e8ee; border-radius: 12px;
+    padding: 13px 16px; margin: 9px 0; font-size: 14.5px; color: #3d4d59;
+  }
+  .field .name { color: #10283d; font-weight: 700; }
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 1px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px;
+  }
+  .req { background: #fde7e7; color: #a3352f; }
+  .rec { background: #e6f0fb; color: #245ea8; }
+  .optn { background: #eef1f4; color: #6b7681; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🏠 빠른 시작 안내</h1>
+    <p>네이버 블로그 매물 자동화 프로그램을 처음 쓰는 분을 위한 3분 가이드입니다.</p>
+  </header>
+
+  <h2>준비물</h2>
+  <div class="note">
+    <b>크롬(Chrome)</b>이 설치돼 있어야 합니다(네이버 자동화에 사용). <b>설치본(setup.exe)</b>으로
+    받은 경우 파이썬은 필요 없습니다. 소스 폴더로 직접 실행하는 경우에만 <b>파이썬 3.11 이상</b>이
+    필요하며, 없으면 <b>python.org</b>에서 설치하세요.
+  </div>
+
+  <div class="os"><span>🪟 Windows (설치본)</span><span>🍎 macOS (소스 실행)</span></div>
+
+  <h2>1단계 · 설치 (Windows · 설치본)</h2>
+  <div class="step">
+    <div class="num">1</div>
+    <div>
+      <h3>setup.exe 더블클릭 → 설치</h3>
+      <p>받은 <code>vibe-blogpost-free-setup.exe</code>를 더블클릭하면 설치가 진행됩니다
+         (관리자 권한 필요 없음). 설치가 끝나면 <b>시작 메뉴</b>와 <b>바탕화면</b>에
+         <b>“네이버 블로그 매물 자동화”</b> 아이콘이 생깁니다.</p>
+    </div>
+  </div>
+  <div class="note tip">
+    🍎 <b>macOS</b>는 소스 폴더로 실행합니다: <code>scripts</code> 폴더의 <code>setup.command</code>로
+    한 번 설치한 뒤, <code>run.command</code>를 더블클릭하세요. "확인되지 않은 개발자" 경고가 나오면
+    파일을 <b>오른쪽 클릭 → 열기</b>로 실행합니다.
+  </div>
+
+  <h2>2단계 · 프로그램 켜기</h2>
+  <div class="step">
+    <div class="num">2</div>
+    <div>
+      <h3>아이콘으로 실행</h3>
+      <p><b>Windows</b>: 시작 메뉴 또는 바탕화면의 <b>“네이버 블로그 매물 자동화”</b> 아이콘 클릭
+         (시작 메뉴 검색창에 <b>“네이버”</b> 또는 <b>“vibe”</b>를 쳐도 바로 나옵니다).<br>
+         <b>macOS</b>: <code>run.command</code> 더블클릭.<br>
+         프로그램 창이 열립니다.</p>
+    </div>
+  </div>
+
+  <h2>3단계 · 키 입력 (처음 한 번)</h2>
+  <div class="step">
+    <div class="num">3</div>
+    <div>
+      <h3>환경설정 탭</h3>
+      <p><b>환경설정</b> 탭에서 네이버 로그인 정보와 필요한 API 키를 넣고 저장합니다.
+         AI 자동 글쓰기를 안 쓸 거면 Google 키는 비워도 됩니다.</p>
+    </div>
+  </div>
+
+  <h2>4단계 · 글 만들고 올리기</h2>
+  <div class="step">
+    <div class="num">4</div>
+    <div>
+      <h3>매물번호 → 조사 → AI 글쓰기 → 포스팅</h3>
+      <p>① 매물번호 입력(또는 <b>내 매물</b> 탭에서 더블클릭) → <b>매물 조사하기</b><br>
+         ② <b>AI로 자동 글쓰기</b> → 제목·본문·대표 이미지 자동 생성<br>
+         ③ 내용 확인 후 <b>블로그로 포스팅</b></p>
+    </div>
+  </div>
+
+  <div class="flowbox">
+    <h4>작업 흐름 자세히</h4>
+    <ol class="flow">
+      <li>좌측에서 <b>매물번호를 직접 입력</b>하거나, <b>내 매물</b> 탭에서 크롤링된
+        매물 CSV 폴더를 지정하고 매물을 <b>더블클릭</b>하면 <b>매물 조사하기</b>가 실행됩니다.
+        이때 네이버 매물 내용은 물론 <b>건축물대장 정보</b>와 <b>주변 입지 정보</b>까지 함께 가져옵니다.</li>
+      <li><b>AI로 자동 글쓰기</b>를 누르면 미리 설정된 기준에 따라 <b>blog자료</b> 탭에
+        블로그 <b>제목·본문</b>과 <b>대표 이미지 1개</b>를 만듭니다.</li>
+      <li><b>블로그로 포스팅</b>을 누르면 자동으로 네이버에 로그인하고 정해진 카테고리에 포스팅합니다.</li>
+      <li><span class="opt">(선택)</span> 대신 <b>본문용 프롬프트·이미지 생성 프롬프트</b>를 만들어,
+        <b>다른 AI 프로그램</b>으로 제목·본문·이미지를 제작해 올 수도 있습니다.</li>
+      <li><span class="opt">(선택)</span> 그 결과를 <b>붙여넣어</b> 본문과 이미지를 완성한 뒤
+        블로그로 포스팅하는 방법도 있습니다.</li>
+    </ol>
+  </div>
+
+  <div class="note tip">
+    ✅ 기본은 <b>임시저장</b>이라 글이 바로 공개되지 않습니다. 발행(전체공개)은 환경설정에서
+    발행 모드를 켜고 카테고리 이름을 정확히 넣어야 진행됩니다.
+  </div>
+
+  <div class="note">
+    🔒 다른 사람에게 줄 때는 <b>설치본(setup.exe)</b>만 주면 됩니다. 설치본에는 개인 키·계정·
+    로그인 세션이 들어 있지 않습니다. 설치 후 내 로그인·설정·생성물은 각자 PC의
+    <b>사용자 폴더(%LOCALAPPDATA%\vibe-blogpost-free)</b>에 저장되어 재설치·업데이트에도 보존됩니다.
+    (소스 폴더째로 줄 때는 <b>.env</b>, <b>config/user_settings.json</b>, <b>data/browser-profile</b>를 빼고 주세요.)
+  </div>
+
+  <h2>환경설정 — 각 항목에 무엇을 넣나</h2>
+  <p style="font-size:14px;color:#6b7681;margin:0 0 6px">
+    <span class="tag req">필수</span> 꼭 필요 &nbsp;
+    <span class="tag rec">권장</span> 넣으면 좋음 &nbsp;
+    <span class="tag optn">선택</span> 필요할 때만
+  </p>
+
+  <div class="field">
+    <span class="name">네이버 로그인 ID · 비밀번호</span><span class="tag req">필수</span><br>
+    블로그에 임시저장·발행할 때 자동 로그인에 사용합니다. 비밀번호는 <b>보안 저장</b>을
+    선택하면 파일이 아니라 macOS 키체인 / Windows 자격 증명 저장소에만 보관됩니다.
+  </div>
+  <div class="field">
+    <span class="name">블로그 ID</span><span class="tag optn">선택</span><br>
+    로그인 ID와 블로그 주소가 <b>다를 때만</b> 입력합니다. 같으면 비워 두세요.
+  </div>
+  <div class="field">
+    <span class="name">Google AI Studio API Key</span><span class="tag optn">선택</span><br>
+    <b>AI로 자동 글쓰기</b>에 사용합니다. <code>aistudio.google.com/app/apikey</code>에서
+    무료로 발급합니다. 안 쓰고 '프롬프트(복사)' 방식으로 작업하면 비워도 됩니다.
+  </div>
+  <div class="field">
+    <span class="name">Kakao REST API 키</span><span class="tag rec">권장</span><br>
+    매물 주소·좌표와 <b>주변 시설(입지) 정보</b> 조회에 사용합니다.
+    <code>developers.kakao.com</code>에서 앱을 만들고 발급합니다.
+  </div>
+  <div class="field">
+    <span class="name">Kakao JavaScript 키</span><span class="tag optn">선택</span><br>
+    프로그램 안의 <b>지도·로드뷰</b> 표시에 사용합니다. 카카오 콘솔의 JavaScript SDK
+    허용 도메인에 <code>http://localhost:8765</code>를 등록해 주세요.
+  </div>
+  <div class="field">
+    <span class="name">공공데이터포털 서비스키</span><span class="tag optn">선택</span><br>
+    <b>건축물대장</b>(사용승인일·층수·구조 등) 조회에 사용합니다.
+    <code>data.go.kr</code>에서 '건축물대장정보 서비스'를 신청해 발급합니다.
+  </div>
+  <div class="field">
+    <span class="name">문의번호</span><span class="tag rec">권장</span><br>
+    블로그 글의 중개사무소 정보 표에 표기됩니다.
+  </div>
+  <div class="field">
+    <span class="name">중개사무소 정보</span><span class="tag rec">권장</span><br>
+    상호(사무소명)·대표 공인중개사·등록번호·소재지·전화·휴대전화를 넣습니다. 블로그 글
+    하단의 중개사무소 표에 표기되어 공인중개사법 표시·광고 규정을 지키는 데 쓰입니다.
+    체크를 해제하면 블로그에 표기하지 않습니다.
+  </div>
+  <div class="field">
+    <span class="name">포스팅 방식 · 공개 범위 · 발행 카테고리</span><span class="tag optn">선택</span><br>
+    기본은 <b>임시저장</b>(안전)입니다. <b>발행</b>을 고르면 즉시 등록되며, 이때
+    <b>공개 범위</b>(전체공개/비공개)와 <b>발행 카테고리</b>(블로그의 카테고리 이름과 정확히 일치)를
+    지정해야 합니다. 카테고리가 블로그에 없으면 발행하지 않고 임시저장까지만 진행합니다.
+  </div>
+  <div class="field">
+    <span class="name">AI 자동 글쓰기 엔진 · Claude 키</span><span class="tag optn">선택</span><br>
+    자동 글쓰기 엔진을 <b>Gemini</b> 또는 <b>Claude</b> 중 고릅니다. Claude를 쓰려면
+    Anthropic API 키를 함께 입력합니다.
+  </div>
+  <div class="field">
+    <span class="name">이실장 ID · 비밀번호</span><span class="tag optn">선택</span><br>
+    이실장 연동을 쓸 때만 입력합니다. 안 쓰면 비워 두세요.
+  </div>
+
+  <p class="foot">자세한 내용은 <b>사용설명서.md</b>를 참고하세요.</p>
+</div>
+</body>
+</html>

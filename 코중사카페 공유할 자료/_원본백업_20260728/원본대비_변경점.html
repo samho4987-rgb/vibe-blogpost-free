@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>네이버 블로그 매물 자동화 — 교육자료 원본 대비 변경점</title>
+<style>
+  :root{
+    --cream:#F8F4E8; --steel:#346988; --steel-h:#2A5570; --navy:#334859;
+    --orange:#C77345; --line:#DCD5C2; --sub:#8A8875; --foot:#B3AF9F;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--cream); color:#2b3540;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+    line-height:1.75; font-size:16px;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:0 20px 90px}
+  header{background:var(--navy); color:#fff; padding:44px 20px 38px; margin-bottom:36px}
+  header .inner{max-width:960px; margin:0 auto}
+  header .kicker{font-size:13px; letter-spacing:.14em; color:#cfe0ea; margin:0 0 10px}
+  header h1{margin:0 0 12px; font-size:27px; line-height:1.35; font-weight:700}
+  header p{margin:0; color:#d7e3ea; font-size:15px}
+  h2{
+    font-size:21px; color:var(--navy); margin:46px 0 14px; padding-bottom:10px;
+    border-bottom:2px solid var(--line);
+  }
+  h3{font-size:17px; color:var(--steel-h); margin:30px 0 8px}
+  p{margin:0 0 14px}
+  .lead{
+    background:#fff; border:1px solid var(--line); border-left:5px solid var(--steel);
+    padding:20px 22px; border-radius:6px; margin:0 0 8px;
+  }
+  .note{
+    background:#fdfaf2; border:1px dashed var(--line); border-radius:6px;
+    padding:16px 20px; color:#4a5560; font-size:15px; margin:18px 0;
+  }
+  table{width:100%; border-collapse:collapse; background:#fff; margin:16px 0 8px; font-size:15px}
+  th,td{border:1px solid var(--line); padding:11px 13px; text-align:left; vertical-align:top}
+  th{background:#eee7d6; color:var(--navy); font-weight:700; font-size:14px}
+  td.k{width:20%; font-weight:600; color:var(--navy); background:#faf7ef}
+  td.a{width:40%}
+  td.b{width:40%; background:#f6fafc}
+  code{
+    background:#eef2f5; border:1px solid #dde5ea; border-radius:4px;
+    padding:1px 5px; font-size:13.5px;
+    font-family:"SFMono-Regular",Menlo,Consolas,monospace; color:#2f4a5c;
+  }
+  ul{margin:0 0 14px; padding-left:22px}
+  li{margin-bottom:7px}
+  .closing{
+    background:#fff; border:1px solid var(--line); border-top:4px solid var(--orange);
+    border-radius:6px; padding:24px 26px; margin:34px 0 0;
+  }
+  .closing p:last-child{margin-bottom:0}
+  .num{
+    display:inline-block; width:26px; height:26px; line-height:26px; text-align:center;
+    background:var(--steel); color:#fff; border-radius:50%; font-size:14px; font-weight:700; margin-right:8px;
+  }
+  footer{
+    margin-top:60px; padding-top:22px; border-top:1px solid var(--line);
+    color:var(--foot); font-size:13.5px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <p class="kicker">코딩 못하는 중개사 · 제출 프로그램 안내</p>
+    <h1>네이버 블로그 매물 자동화<br>— 교육자료 원본과 달라진 부분</h1>
+    <p>제출본 <code style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.25);color:#fff">vibe-blogpost-free</code> · 작성일 2026-07-28</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="lead">
+  <p style="margin-bottom:0">달라진 부분은 크게 하나로 요약됩니다.
+  <strong>원본은 “Claude와 대화하면서 돌리는 스크립트 묶음”이고, 제출본은 “설치해서 혼자 실행하는 프로그램”입니다.</strong>
+  아래는 그 차이가 실제로 어디에 어떻게 나타나는지 정리한 것입니다.</p>
+</div>
+
+<h2>한눈에 보는 대조표</h2>
+
+<table>
+  <thead>
+    <tr><th style="width:20%">항목</th><th style="width:40%">교육자료 원본</th><th style="width:40%">제출본 (vibe-blogpost-free)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="k">실행 방식</td>
+      <td class="a">Claude에게 “○○번 매물 광고 만들어줘”라고 말하면 워크플로 문서를 따라 파이썬 스크립트 2개를 순서대로 실행</td>
+      <td class="b">설치 후 아이콘을 눌러 실행하는 창 있는 프로그램. 단계 버튼 5개를 순서대로 누름.<br>
+      <strong>정리해 둔 매물 목록에서 원하는 매물을 더블클릭하는 것만으로 블로그 포스팅까지 완성</strong></td>
+    </tr>
+    <tr>
+      <td class="k">필요한 준비물</td>
+      <td class="a">Claude 구독, 파이썬·Playwright 설치, 터미널 사용</td>
+      <td class="b">설치 파일 하나. AI 키가 없어도 초안까지는 만들어짐</td>
+    </tr>
+    <tr>
+      <td class="k">동작 환경</td>
+      <td class="a">포스팅 스크립트가 <code>win32clipboard</code>를 쓰기 때문에 사실상 윈도우 전용</td>
+      <td class="b">브라우저 표준 클립보드 API로 바꿔 윈도우·맥에서 같은 코드로 동작</td>
+    </tr>
+    <tr>
+      <td class="k">계정 정보 보관</td>
+      <td class="a">설정 파일(<code>config/settings.yaml</code>)에 아이디·비밀번호를 직접 적어둠</td>
+      <td class="b">운영체제 키체인(윈도우 자격 증명 관리자 / 맥 키체인)에 저장. 설정 파일과 로그에는 남지 않음</td>
+    </tr>
+    <tr>
+      <td class="k">매물 정보 수집</td>
+      <td class="a">브라우저로 매물 화면을 열어 화면에 그려진 값을 읽는 한 가지 경로. 실패하면 종료</td>
+      <td class="b">같은 방식을 유지하되 앞뒤로 두 경로를 더 붙여 3단 대비. 한 경로가 막혀도 다음으로 넘어감</td>
+    </tr>
+    <tr>
+      <td class="k">단지·주변 정보</td>
+      <td class="a">Claude의 웹검색으로 사람이 확인해 채움</td>
+      <td class="b">카카오 지역 검색 + 국토교통부 건축물대장 공공 API로 자동 조회</td>
+    </tr>
+    <tr>
+      <td class="k">본문 글쓰기</td>
+      <td class="a">Claude가 지침 문서를 읽고 직접 작성</td>
+      <td class="b">AI 키가 있으면 AI가, 없으면 프로그램이 오프라인 초안을 생성. 사실 항목은 공공 API 원문으로 덮어씀</td>
+    </tr>
+    <tr>
+      <td class="k">법정 고지 문구</td>
+      <td class="a">본문 지침에 권고로 서술</td>
+      <td class="b">공인중개사법 제18조의2 거래상태 확인 안내를 코드가 강제. 빠지면 저장 자체가 막힘</td>
+    </tr>
+    <tr>
+      <td class="k">썸네일</td>
+      <td class="a">Claude의 이미지 생성 도구 필수. 도구가 없으면 이 단계에서 멈춤</td>
+      <td class="b">프로그램이 로컬에서 직접 그림(템플릿 4종·배경 프리셋 6종). 외부 도구 없이도 완성</td>
+    </tr>
+    <tr>
+      <td class="k">포스팅 결과</td>
+      <td class="a">임시저장까지만</td>
+      <td class="b">기본값은 임시저장. 발행을 선택할 수 있고, 조건이 안 맞으면 자동으로 임시저장으로 되돌림</td>
+    </tr>
+    <tr>
+      <td class="k">배포·업데이트</td>
+      <td class="a">폴더를 통째로 복사해 사용</td>
+      <td class="b">설치 파일 배포 + 프로그램 안에서 새 버전 확인·갱신. 설정과 결과물은 덮어쓰지 않음</td>
+    </tr>
+    <tr>
+      <td class="k">코드 규모</td>
+      <td class="a">파이썬 2개 파일 약 1,400줄 + 지침 문서 6개</td>
+      <td class="b">화면 코드 1개 + 기능 모듈 18개, 약 11,900줄</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2><span class="num">1</span>실행 구조 — 대화형에서 단독 실행형으로</h2>
+
+<p>원본은 <code>_agent/workflows/create-blog-ad.md</code>에 적힌 5단계를 Claude가 읽고,
+그 안에서 <code>fetch_with_curl.py</code>와 <code>post_blog.py</code>를 터미널로 실행하는 구조입니다.
+글쓰기와 썸네일은 Claude 본인이 담당하므로, <strong>Claude 구독이 없으면 중간 두 단계가 아예 비어 버립니다.</strong></p>
+
+<p>제출본은 이 워크플로 문서 자체를 프로그램 안으로 옮겼습니다.
+탭 7개(내 매물 · 매물 조사 메모 · 프롬프트(복사) · blog자료 · 이미지 · 환경설정 · ⚙고급)와
+단계 버튼 5개로 구성돼 있고, 각 단계는 별도 스레드에서 돌아 진행 중에도 화면이 멈추지 않습니다.
+터미널을 열 일도, 파이썬을 설치할 일도 없습니다.</p>
+
+<div class="note">
+  단계 순서와 각 단계가 만들어내는 산출물(매물 JSON → 썸네일 → 본문 마크다운 → 에디터 입력)은 원본과 동일합니다.
+  바꾼 것은 “누가 그 순서를 진행시키느냐”입니다.
+</div>
+
+<h2><span class="num">2</span>매물 정보 수집 — 한 경로에서 3단 대비로</h2>
+
+<p>원본 <code>fetch_with_curl.py</code>는 브라우저로 매물 상세 화면을 연 뒤
+화면에 그려진 값을 읽어 약 30개 항목을 JSON으로 만듭니다.
+가격 영역이 15초 안에 안 나타나면 실패하고, 실패하면 그 자리에서 종료됩니다.</p>
+
+<p>제출본은 같은 방식을 <strong>마지막 안전망으로 남겨두고</strong>, 앞에 두 단계를 더 붙였습니다.
+브라우저를 띄우지 않고 바로 조회하는 경로를 먼저 시도하고,
+그게 막히면 로그인 세션에서 필요한 값을 다시 확보해 재시도하고,
+그래도 안 되면 원본과 같은 화면 읽기로 내려옵니다.
+어느 경로로 성공했는지는 로그에 남지만, <strong>값 자체는 화면·로그·디스크 어디에도 기록하지 않습니다.</strong></p>
+
+<div class="note">
+  단지 주변 정보는 원본에서 Claude 웹검색으로 사람이 확인해 넣던 부분입니다.
+  제출본은 카카오 지역 검색으로 생활 편의시설 8개 분류를 조회하고,
+  국토교통부 건축물대장 공공 API에서 16개 항목(사용승인일·구조·주차대수 등)을 받아옵니다.
+  검색 결과 요약이 아니라 <strong>공적 장부의 원문 값</strong>이라는 점이 실무에서 가장 큰 차이입니다.
+</div>
+
+<h2><span class="num">3</span>글쓰기 — AI가 없어도 초안이 나오고, 사실은 AI가 못 건드림</h2>
+
+<p>원본의 글 품질은 <code>_agent/skills/content-writer/SKILL.md</code>가 결정합니다.
+제목 형식, 어조, 문단 규칙, 분량(800~1500자)이 거기 적혀 있고 Claude가 그 지침대로 씁니다.
+원본 문서에도 “광고 글로서 어조가 어색한 부분 있음(개선 예정)”,
+“부동산광고규정 준수 금지어 필터 추가(예정)”라고 남아 있습니다.</p>
+
+<p>제출본은 이 두 가지를 코드 쪽으로 옮겼습니다.</p>
+
+<ul>
+  <li><strong>AI 키가 없어도 글이 나옵니다.</strong> 키가 없으면 수집한 매물 데이터로 오프라인 초안을 만들고,
+  프로그램을 설치하자마자 전체 흐름을 끝까지 볼 수 있습니다. 키를 넣으면 그 자리를 AI 원고가 대신합니다.</li>
+  <li><strong>사실 문단은 AI 문장을 공공 API 원문으로 교체합니다.</strong>
+  AI가 쓴 글에서 건축물대장·주변시설에 해당하는 섹션을 찾아 검증된 값으로 갈아끼웁니다.
+  AI가 없는 사실을 지어내도 최종 글에는 남지 않습니다.</li>
+  <li><strong>법정 고지 문구가 필수입니다.</strong> 공인중개사법 제18조의2 거래상태 확인 안내와 문의 안내는
+  글에 정확히 한 번씩 들어가야 하고, 없거나 중복되면 저장 단계에서 오류로 막힙니다.</li>
+  <li><strong>본문 이미지에는 “이해를 돕기 위한 연출 이미지이며, 실제 매물과 무관합니다.”</strong> 캡션이 자동으로 붙습니다.</li>
+</ul>
+
+<h2><span class="num">4</span>썸네일 — 외부 이미지 도구 없이</h2>
+
+<p>원본 워크플로는 3단계 AI 썸네일 생성을 “🚨 필수 단계”로 표시하고
+<code>generate_image</code> 도구에 의존합니다. 그 도구가 없는 환경에서는 여기서 흐름이 끊깁니다.</p>
+
+<p>제출본은 프로그램이 직접 1080×1080 썸네일을 그립니다.
+템플릿 4종과 배경 프리셋 6종을 고를 수 있고, 강조 금색은 고정이라 블로그 목록에서 통일감이 유지됩니다.
+이미지 라이브러리조차 없는 환경을 대비해 최소한의 PNG를 직접 만들어내는 경로까지 넣어두었습니다.</p>
+
+<h2><span class="num">5</span>포스팅 — 윈도우 전용에서 양쪽 다로, 그리고 안전장치</h2>
+
+<p>원본 <code>post_blog.py</code>는 첫 줄에서 <code>win32clipboard</code>를 불러옵니다.
+윈도우 전용 모듈이라 맥에서는 실행 자체가 되지 않습니다.
+교육 환경이 윈도우 기준이었기 때문에 자연스러운 선택이지만, 맥을 쓰는 사무소에서는 그대로 쓸 수 없습니다.</p>
+
+<p>제출본은 이 부분을 브라우저 안에서 처리하도록 바꿨습니다.
+표 HTML을 브라우저 표준 클립보드 API로 직접 올린 뒤 에디터에 붙여넣기 때문에
+윈도우와 맥이 같은 코드로 동작하고, 인코딩 길이 문제도 사라집니다.</p>
+
+<p>포스팅 마무리도 달라졌습니다. 원본은 임시저장 버튼만 누르고 끝납니다.
+제출본은 기본값이 임시저장인 것은 같지만 발행을 선택할 수 있고,
+발행을 골랐더라도 카테고리 선택 같은 전제 조건이 충족되지 않으면
+<strong>자동으로 임시저장으로 내려앉습니다.</strong>
+네이버 에디터 기본값이 ‘비공개’라 공개 설정을 명시적으로 지정하는 처리도 들어가 있습니다.</p>
+
+<div class="note">
+  원본이 “안전을 위해 임시저장으로 완료”라고 정한 판단은 그대로 물려받았습니다.
+  제출본은 그 기본값을 유지한 채 <strong>선택지를 하나 더 준 것</strong>이지, 기본 동작을 바꾼 것이 아닙니다.
+</div>
+
+<h2><span class="num">6</span>설정과 개인정보 취급</h2>
+
+<p>원본은 계정 정보와 중개사 정보를 <code>config/settings.yaml</code> 한 파일에 모아둡니다.
+구조가 단순해 배우기 좋지만, <strong>그 폴더를 그대로 옮기거나 공유하면 계정 정보가 함께 따라갑니다.</strong>
+포스팅 스크립트 안에도 사무소명과 연락처가 문자열로 박혀 있어 사용자마다 코드를 고쳐야 합니다.</p>
+
+<p>제출본은 저장 위치를 성격별로 나눴습니다.</p>
+
+<ul>
+  <li><strong>비밀번호·인증값</strong> → 운영체제 키체인. 파일로 남지 않습니다.</li>
+  <li><strong>API 키</strong> → <code>.env</code> 파일, 권한 600(본인만 읽기).</li>
+  <li><strong>일반 설정</strong>(중개사 정보·기본 카테고리 등) → 일반 설정 파일. 프로그램 화면에서 입력하며 코드 수정이 필요 없습니다.</li>
+</ul>
+
+<p>업데이트를 받을 때도 설정 파일·결과물 폴더·브라우저 프로필은 보호 목록에 들어 있어 덮어쓰지 않습니다.
+지도 키를 쓰는 화면은 키를 파일에 쓰지 않고 로컬에서만 전달하도록 처리했습니다.</p>
+
+<h2><span class="num">7</span>원본에서 그대로 가져온 것</h2>
+
+<p>바뀐 것만 나열하면 오해가 생길 수 있어, 유지한 부분도 밝혀 둡니다.
+아래는 “참고했다”가 아니라 <strong>원본의 판단을 그대로 따른 것</strong>입니다.</p>
+
+<ul>
+  <li><strong>5단계 흐름이라는 큰 틀</strong> — 정보 수집 → 보강 → 썸네일 → 본문 → 에디터 자동 입력.
+  순서도 산출물 구조도 원본 그대로입니다. 이 뼈대를 바꾸지 않았습니다.</li>
+
+  <li><strong>표 5종 플레이스홀더 체계</strong> —
+  <code>[THUMBNAIL_IMAGE]</code> · <code>[TABLE_COMPLEX]</code> · <code>[TABLE_SUMMARY]</code> ·
+  <code>[TABLE_DETAIL]</code> · <code>[TABLE_REALTOR]</code>. 이름도 역할도 원본과 같습니다.
+  다르게 짤 수도 있었지만 <strong>가급적 원본을 그대로 두었습니다.</strong>
+  원본으로 만들어 둔 템플릿을 그대로 가져다 쓸 수 있습니다.
+  대신 프리셋 모드를 얹어 <strong>디자인 조합 24가지(템플릿 4종 × 배경 프리셋 6종)</strong>를 고를 수 있게 넓혔습니다.
+  틀은 그대로 두고 겉모습만 선택지를 준 셈입니다.</li>
+
+  <li><strong>표 4종 구성</strong> — 매물 요약 / 매물 세부 / 단지 / 중개사무소. 항목 구성이 같습니다.</li>
+
+  <li><strong>스마트에디터에는 클립보드 붙여넣기로 표를 넣는다</strong>는 핵심 노하우 —
+  이 프로그램에서 가장 까다로운 부분이고, 원본이 아니었으면 여기서 한참 헤맸을 대목입니다.
+  구현 방법은 바꿨지만 <strong>“왜 그렇게 해야 하는지”를 알려준 것은 원본</strong>입니다.</li>
+
+  <li><strong>셀렉터를 코드 밖 설정 파일로 빼두는 구조</strong> —
+  네이버 에디터 UI가 바뀌어도 코드를 안 건드리고 설정만 고치면 되게 한 원본의 판단을 그대로 따랐습니다.</li>
+
+  <li><strong>브라우저 프로필을 유지해 로그인을 재사용</strong>하는 방식 — 매번 로그인하지 않아도 되는 이 구조도 원본 것입니다.</li>
+
+  <li><strong>기본은 임시저장</strong>이라는 안전 원칙 — 발행 선택지를 추가했을 뿐, 기본값은 원본이 정한 그대로 두었습니다.</li>
+
+  <li><strong>산출물을 파일로 남기는 방식</strong> — 매물 정보 · 썸네일 · 본문 원고를 각각 파일로 떨어뜨려
+  사람이 중간에 열어보고 고칠 수 있게 한 구성도 원본을 따랐습니다.</li>
+</ul>
+
+<h2>정리</h2>
+
+<div class="closing">
+  <p>원본은 <strong>“이 흐름이 실제로 된다”는 것을 증명한 교재</strong>이고,
+  제출본은 그 흐름을 <strong>파이썬을 모르는 중개사가 설치만 해서 쓸 수 있게 만든 것</strong>입니다.
+  구조를 새로 설계한 것이 아니라, 원본이 “예정”으로 남겨둔 항목(발행 자동화 · 광고규정 문구 처리)과
+  환경 제약(윈도우 전용 · Claude 구독 필요)을 하나씩 채워 넣은 결과입니다.
+  기능 뼈대의 출처가 코중사 교육자료라는 점을 분명히 밝힙니다.</p>
+
+  <p>제출한 프로그램도 정규 회원이 되고자 올린 것이라기보다는,
+  <strong>이런 형태도 가능하다는 것을 확인해 보고자 만든 것</strong>입니다. 가볍게 봐 주시면 좋겠습니다.</p>
+
+  <p style="margin-bottom:0">좋은 교육자료 덕분에 여기까지 만들어 볼 수 있었습니다. 감사합니다.</p>
+</div>
+
+<footer>
+  본 문서는 제출 프로그램의 실제 소스 코드와 교육자료 원본 소스를 나란히 대조해 작성했습니다.<br>
+  작성일 2026-07-28 · 제출본 <code>vibe-blogpost-free</code>
+</footer>
+
+</div>
+</body>
+</html>
