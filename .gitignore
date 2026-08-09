@@ -30,3 +30,12 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# M4 보강 — 백업·진단 생성물·키 차단
+*.bak_*
+*진단결과*.txt
+*.pem
+cookies*
+logs/
+*.log
+*.exe

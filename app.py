@@ -46,6 +46,60 @@ def _ensure_venv_python() -> None:
 _ensure_venv_python()
 
 
+def _ensure_native_arch() -> None:
+    """맥에서 앱이 로제타(인텔 호환, x86_64)로 실행되면 네이티브(arm64)로 재실행한다.
+
+    2026-08-06: 런처 등 로제타로 도는 부모 프로그램을 거쳐 앱이 뜨면 로제타 상태가
+    그대로 이어져, arm64 로 설치된 컴파일 패키지(pydantic_core 등)를 못 읽는 사고가
+    있었다(dlopen: incompatible architecture — have 'arm64', need 'x86_64').
+    진짜 인텔 맥에서는 아무것도 하지 않는다(번역 여부를 sysctl 로 확인)."""
+    import os
+    import sys as _sys
+
+    if _sys.platform != "darwin":
+        return
+    if getattr(_sys, "frozen", False):
+        return
+    if os.environ.get("_BLOG_APP_ARCH_REEXEC"):
+        return  # 이미 한 번 재실행함(무한 루프 방지)
+    import platform as _platform
+
+    if _platform.machine() != "x86_64":
+        return  # 이미 네이티브(arm64)로 실행 중
+    try:
+        import subprocess as _subprocess
+
+        translated = _subprocess.run(
+            ["/usr/sbin/sysctl", "-in", "sysctl.proc_translated"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout.strip()
+    except Exception:
+        return
+    if translated != "1":
+        return  # 진짜 인텔 맥 → 그대로 진행
+    try:
+        os.environ["_BLOG_APP_ARCH_REEXEC"] = "1"
+        os.execv(
+            "/usr/bin/arch",
+            [
+                "arch",
+                "-arm64",
+                _sys.executable,
+                os.path.abspath(__file__),
+                *_sys.argv[1:],
+            ],
+        )
+    except Exception:
+        # 재실행 실패 시 현재 상태로 계속 진행한다(AI 원고만 실패하고 나머지는 동작).
+        os.environ.pop("_BLOG_APP_ARCH_REEXEC", None)
+        return
+
+
+_ensure_native_arch()
+
+
 def _bootstrap_core() -> None:
     """공용 백엔드(vibe-blogcore)를 임포트 경로에 올린다.
 
@@ -149,6 +203,8 @@ from naver_blog_automation.thumbnail import (
 )
 from naver_blog_automation.workflow import BlogAutomationWorkflow
 from claude_theme import apply_claude_theme, C
+import datetime
+from naver_blog_automation import field_supplement as fsup
 
 
 ACTION_LABELS = (
@@ -698,6 +754,13 @@ class BlogAutomationApp:
             state="disabled",
         )
         self.research_map_button.pack(side="left")
+        self.research_supplement_button = ttk.Button(
+            research_actions,
+            text="현장 정보 보충",
+            command=self._open_field_supplement,
+            style="Secondary.TButton",
+        )
+        self.research_supplement_button.pack(side="left", padx=(8, 0))
         self.research_text = self._text_area(research_tab)
         self.research_text.grid(row=2, column=0, sticky="nsew")
 
@@ -757,6 +820,8 @@ class BlogAutomationApp:
         )
         option_bar = ttk.Frame(image_tab, style="White.TFrame")
         option_bar.grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        # 2026-08-08: 체크박스 3개를 한 줄에 몰면 창 폭을 넘어 뒤엣것이 잘려 안 보인다.
+        # 위에서 아래로 쌓아(anchor="w") 셋 다 보이게 한다.
         self.auto_body_cards_var = tk.BooleanVar(
             value=self.settings.auto_body_cards
         )
@@ -764,7 +829,7 @@ class BlogAutomationApp:
             option_bar,
             text="자동 생성한 본문 카드를 포스팅에 사용(직접 첨부 이미지가 있으면 그쪽 우선)",
             variable=self.auto_body_cards_var,
-        ).pack(side="left")
+        ).pack(anchor="w")
         self.thumbnail_branding_var = tk.BooleanVar(
             value=self.settings.thumbnail_branding
         )
@@ -772,7 +837,14 @@ class BlogAutomationApp:
             option_bar,
             text="사무소명·연락처를 썸네일에 표시(환경설정의 중개사무소 정보 사용)",
             variable=self.thumbnail_branding_var,
-        ).pack(side="left", padx=(18, 0))
+        ).pack(anchor="w", pady=(4, 0))
+        # 2026-08-08(실험): 로드뷰 자동 캡처를 커버 배경으로. 기본 꺼짐, 사진 없을 때만.
+        self.roadview_capture_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            option_bar,
+            text="로드뷰 자동 캡처를 커버 배경으로(실험 · 사진 없을 때만)",
+            variable=self.roadview_capture_var,
+        ).pack(anchor="w", pady=(4, 0))
         self.image_prompt_text = self._text_area(image_tab)
         self.image_prompt_text.insert("1.0", self.settings.image_prompt)
         self.image_prompt_text.grid(
@@ -1235,7 +1307,13 @@ class BlogAutomationApp:
             return
         for item in tree.get_children():
             tree.delete(item)
-        folder = (self.settings.my_listings_dir or "").strip()
+        # 2026-08-07(개선⑤): 환경변수로 폴더를 덮어쓸 수 있게 한다(다른 PC·사무소
+        # 공유 시 하드코딩된 절대경로 대신). 없으면 설정값을 쓴다.
+        import os as _os
+        folder = (
+            _os.environ.get("VIBE_MY_LISTINGS_DIR")
+            or (self.settings.my_listings_dir or "")
+        ).strip()
         if not folder:
             self.listings_count_label.configure(text="폴더를 지정해 주세요.")
             return
@@ -1263,7 +1341,8 @@ class BlogAutomationApp:
             )
         else:
             self.listings_count_label.configure(
-                text="이 폴더에서 매물 CSV(내매물)를 찾지 못했습니다."
+                text="이 폴더에서 '내매물' CSV를 찾지 못했습니다. "
+                     "바이브맵에서 '내 매물'을 먼저 내보내 주세요."
             )
 
     def _on_listing_selected(self, _event=None) -> None:
@@ -1301,7 +1380,9 @@ class BlogAutomationApp:
             if entry.is_file() and entry.suffix.lower() == ".csv"
         ]
         my_files = [f for f in csv_files if "내매물" in f.name]
-        target_files = my_files if my_files else sorted(csv_files, key=lambda f: f.name)
+        # 2026-08-07(개선③): '내매물*.csv' 가 없으면 폴더의 다른 CSV(바이브맵 시장
+        # 수집분 등)를 읽지 않는다. 예전엔 전부 읽어 타인 매물 수만 건이 섞였다.
+        target_files = my_files
         seen: set[str] = set()
         rows: list[dict[str, str]] = []
         for path in target_files:
@@ -1491,6 +1572,53 @@ class BlogAutomationApp:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         self.status_var.set("클립보드에 복사했습니다.")
+
+    def load_publish_dir(self, folder: str) -> None:
+        """vibemap [발행하기] 가 넘긴 결과 폴더에서 원고·썸네일을 채워 넣는다.
+
+        폴더 규격: ~/.vibe/blogpost/output/(매물번호)/ 안에
+          · 원고_*.md (vibe-blogpage 저장분) 또는 post.md
+          · thumbnails/thumbnail_*.png (있으면 대표이미지로 선택)
+        실패해도 앱 정상 동작을 막지 않는다(호출측이 try 로 감쌈)."""
+        import glob
+        base = os.path.abspath(os.path.expanduser(folder))
+        if not os.path.isdir(base):
+            return
+        # 1) 원고 md → blog자료 본문
+        md = None
+        for pat in ("원고_*.md", "post.md", "*.md"):
+            hits = sorted(glob.glob(os.path.join(base, pat)))
+            if hits:
+                md = hits[0]; break
+        if md:
+            try:
+                text = open(md, encoding="utf-8").read()
+                self.body_text.delete("1.0", "end")
+                self.body_text.insert("1.0", text)
+                self.body_text.focus_set()
+            except Exception:
+                pass
+        # 2) 썸네일 png → 대표이미지 선택
+        thumbs = sorted(glob.glob(os.path.join(base, "thumbnails", "thumbnail_*.png"))) \
+            or sorted(glob.glob(os.path.join(base, "thumbnails", "*.png")))
+        if thumbs:
+            self.selected_thumbnail_path = thumbs[0]
+            try:
+                self.thumbnail_pick_var.set(os.path.basename(thumbs[0]))
+            except Exception:
+                pass
+        # 3) blog자료 탭으로 이동 + 안내
+        try:
+            self._goto_result_paste()
+        except Exception:
+            pass
+        try:
+            messagebox.showinfo(
+                "발행 준비 완료",
+                "바이브맵에서 만든 원고와 썸네일을 불러왔습니다.\n"
+                "내용을 확인한 뒤 '블로그로 포스팅'으로 임시저장하세요.")
+        except Exception:
+            pass
 
     def _goto_result_paste(self) -> None:
         """3단계: 외부 AI로 완성한 글을 붙여넣는 blog자료 탭으로 이동한다."""
@@ -3002,6 +3130,46 @@ class BlogAutomationApp:
         except Exception:
             pass
 
+    def start_from_article(self, article_no: str) -> None:
+        """바이브맵 [발행하기] 진입점. 매물번호를 채우고 '1. 매물 조사하기'를 자동 실행한다.
+
+        이후 사용자는 '2. AI로 자동 글쓰기'(또는 4·5로 외부 AI 붙여넣기) → '3. 블로그로
+        포스팅' 순서로 진행한다. 앱 자체 흐름을 타므로 제목·본문·상태가 정상 설정된다."""
+        no = str(article_no or "").strip()
+        if not no:
+            return
+        self.article_var.set(no)
+        try:
+            self.status_var.set(f"바이브맵에서 매물번호 {no} 를 받았습니다 — 매물 조사를 시작합니다…")
+        except Exception:
+            pass
+        messagebox.showinfo(
+            "바이브맵에서 이어받음",
+            f"매물번호 {no} 로 조사를 시작합니다.\n\n"
+            "① 조사가 끝나면 → ② 'AI로 자동 글쓰기' (또는 '4·5'로 외부 AI 사용) →\n"
+            "③ 'blog자료' 탭에서 제목·본문·이미지 확인 → '블로그로 포스팅'.\n\n"
+            "※ 제목이 비어 있으면 포스팅되지 않습니다 — 꼭 채워 주세요.")
+        # UI 가 뜬 뒤 1단계 실행(비동기 워크플로라 after 로 지연)
+        self.root.after(400, lambda: self._run_step(0))
+
+    def _open_field_supplement(self) -> None:
+        # 현장에서만 알 수 있는 항목(현장 의견·위반건축물·층고 등)을 3버튼으로 받아
+        # 조사 메모에 '## 현장 보충 정보' 블록으로 반영한다. 크롤로 자동으로 안 오는 값.
+        if self.last_result is None:
+            messagebox.showinfo(
+                "매물 조사 먼저",
+                "먼저 '1. 매물 조사하기'로 매물 자료를 수집해 주세요.",
+            )
+            return
+        ptype = self.last_result.property_info.property_type
+        dlg = _FieldSupplementDialog(self.root, ptype)
+        self.root.wait_window(dlg)
+        if getattr(dlg, "result_block", None):
+            current = self.research_text.get("1.0", "end-1c")
+            merged = fsup.merge_into_memo(current, dlg.result_block)
+            self._replace_text(self.research_text, merged)
+            self.status_var.set("현장 보충 정보를 조사 메모에 반영했습니다.")
+
     def _run_sample(self) -> None:
         article_no = self.article_var.get().strip()
         curl = self.curl_text.get("1.0", "end").strip()
@@ -3130,7 +3298,15 @@ class BlogAutomationApp:
         workflow = self._workflow(offline=(engine != "ai"))
 
         def generate() -> WorkflowResult:
-            workflow.generate_image(self.last_result, prompt=prompt, engine=engine)
+            # 실사진(직접 첨부)이 1순위. 사진이 없고 로드뷰 캡처(실험)가 켜져
+            # 있으면 매물 건물 로드뷰를 캡처해 커버 배경으로 쓴다.
+            background = (self.selected_thumbnail_path or "").strip()
+            if not background and self.roadview_capture_var.get():
+                background = self._capture_roadview_cover()
+            workflow.generate_image(
+                self.last_result, prompt=prompt, engine=engine,
+                background_path=background,
+            )
             return self.last_result
 
         self._run_task(
@@ -3143,15 +3319,60 @@ class BlogAutomationApp:
             switch_result_tab=False,
         )
 
+    def _capture_roadview_cover(self) -> str:
+        """(실험) 매물 건물 로드뷰를 자동 캡처해 커버 배경 PNG 경로를 돌려준다.
+
+        좌표·JavaScript 키가 있고 그 위치에 로드뷰가 있을 때만 성공한다. 실패·
+        로드뷰 없음·키/좌표 부재 시 빈 문자열을 돌려주고, 대표 이미지 생성은
+        기존 방식(로컬 카드)으로 이어진다. ⚠️ 실험·로컬 미리보기 용도 — 공개
+        블로그로의 상업적 재배포는 카카오 약관 확인이 필요하다."""
+        key = (self.settings.kakao_javascript_key or "").strip()
+        lat = (self.current_latitude or "").strip()
+        lng = (self.current_longitude or "").strip()
+        if not key or not lat or not lng or self.last_result is None:
+            return ""
+        try:
+            from naver_blog_automation.roadview_capture import capture_roadview
+
+            # 8765 포트는 앱의 지도·로드뷰 서버가 이미 쓰고 있다(카카오 도메인 등록도
+            # localhost:8765 하나뿐). 새 서버를 또 띄우면 [Errno 48] 이 나므로 앱이
+            # 쓰는 서버를 그대로 재사용한다. 없으면 여기서 만들어 앞으로도 공유한다.
+            if self.map_server is None:
+                self.map_server = KakaoMapServer()
+            out_dir = Path(self.last_result.output_dir)
+            saved = capture_roadview(
+                javascript_key=key,
+                title=self.last_result.property_info.name,
+                address=self.last_result.property_info.address,
+                latitude=lat,
+                longitude=lng,
+                nearby_places=self.last_result.nearby_places,
+                out_path=out_dir / "roadview_cover.png",
+                browser_channel=(
+                    getattr(self.settings, "browser_channel", "chrome") or "chrome"
+                ),
+                headless=False,
+                server=self.map_server,
+            )
+            if saved is None:
+                self._append_log(
+                    "[로드뷰 캡처] 이 위치에는 제공되는 로드뷰가 없어 건너뜁니다."
+                )
+                return ""
+            self._append_log(f"[로드뷰 캡처] 커버 배경으로 사용: {saved}")
+            return str(saved)
+        except Exception as error:  # noqa: BLE001 - 실험 기능, 실패해도 생성 계속
+            self._append_log(f"[로드뷰 캡처 실패] {error}")
+            return ""
+
     def _resolve_thumbnail_path(self) -> str:
         """대표이미지 우선순위: 직접 업로드 > 로컬 생성 > 없음.
 
         직접 올린 이미지가 있으면 그것을, 없으면 '로컬 이미지 생성'으로 만든
         이미지를 쓴다. 파일이 없거나 너무 작으면(깨짐·빈 이미지) 대표이미지 없이
         포스팅한다."""
-        uploaded = (self.selected_thumbnail_path or "").strip()
-        if uploaded and Path(uploaded).exists():
-            return uploaded
+        # 2026-08-08: 선택한 사진은 '커버 배경'으로 생성 단계에서 카드와 합성된다.
+        # 그래서 생성 커버(사진+카드)를 우선 쓰고, 생성 안 했을 때만 사진 원본 폴백.
         generated = ""
         if self.last_result is not None:
             generated = (self.last_result.thumbnail_path or "").strip()
@@ -3162,6 +3383,9 @@ class BlogAutomationApp:
                     return generated
             except OSError:
                 pass
+        uploaded = (self.selected_thumbnail_path or "").strip()
+        if uploaded and Path(uploaded).exists():
+            return uploaded
         return ""
 
     def _save_draft(self) -> None:
@@ -3254,6 +3478,9 @@ class BlogAutomationApp:
         body_image_paths = [
             path for path in self.selected_body_image_paths if path
         ]
+        # 직접 첨부한 이미지(주로 AI 생성 참고이미지)에만 "연출 이미지" 면책
+        # 문구를 단다. 앱이 직접 만든 본문 카드에는 달지 않는다(2026-08-07).
+        caption_body_images = True
         # 직접 첨부한 본문 이미지가 없으면, 자동 생성한 본문 카드(핵심정보·입지·
         # 체크포인트)를 사용한다(이미지 탭 체크박스로 끌 수 있음).
         if not body_image_paths and self.auto_body_cards_var.get():
@@ -3263,6 +3490,7 @@ class BlogAutomationApp:
                 if path and Path(path).exists()
             ]
             if body_image_paths:
+                caption_body_images = False
                 self._append_log(
                     f"자동 생성한 본문 카드 {len(body_image_paths)}장을 본문에 첨부합니다."
                 )
@@ -3276,6 +3504,7 @@ class BlogAutomationApp:
                 password,
                 remember_password,
                 body_image_paths,
+                caption_body_images,
             ),
         )
 
@@ -3287,6 +3516,7 @@ class BlogAutomationApp:
         password: str,
         remember_password: bool,
         body_image_paths: list[str] | None = None,
+        caption_body_images: bool = True,
     ) -> dict[str, object]:
         password_saved = False
         if naver_id and password:
@@ -3310,6 +3540,7 @@ class BlogAutomationApp:
             password=password,
             keep_browser_open=True,
             body_image_paths=[Path(path) for path in (body_image_paths or [])],
+            caption_body_images=caption_body_images,
             on_saved=notify_saved,
         )
         password = ""
@@ -3846,9 +4077,490 @@ class BlogAutomationApp:
             self.root.destroy()
 
 
+# 2026-08-07: vibemap login_dialog.py 의 브랜드 팔레트를 그대로 옮겼다.
+# 이 폴백 창(tkinter)을 PySide6 로그인 창과 같은 모습으로 그리기 위한 것.
+# 값이 바뀌면 vibemap/login_dialog.py 의 BRAND_* 와 함께 고친다.
+_VIBE_BRAND = {
+    "bg": "#F8F4E8",        # 크림 배경(로고 배경색)
+    "navy": "#334859",      # 워드마크 네이비 → 타이틀
+    "blue": "#346988",      # 방패 스틸블루 → 주 버튼/포커스
+    "blue_dk": "#2A5570",   # 버튼 hover
+    "border": "#DCD5C2",    # 인풋 테두리(따뜻한 모래색)
+    "text_sub": "#8A8875",  # 보조 텍스트(웜 그레이)
+    "disabled": "#C7C3B6",  # 비활성 버튼
+    "field_bg": "#FFFFFF",
+    "field_fg": "#1A1A1A",
+    "error": "#C0392B",
+}
+_VIBE_LOGO_WIDTH = 208      # 창 안 로고 표시 폭(px)
+
+
+def _vibe_logo_path() -> str:
+    """vibemap 로고 에셋 경로. 소스 실행이면 형제 폴더 ../vibemap/assets 에서 찾는다.
+    번들(frozen)이나 파일이 없으면 빈 문자열(→ 이모지 폴백)."""
+    import os
+    if getattr(sys, "frozen", False):
+        return ""
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    for rel in (
+        os.path.join(os.pardir, "vibemap", "assets", "login_logo.png"),
+        os.path.join(os.pardir, "vibemap", "logo.png"),
+    ):
+        p = os.path.abspath(os.path.join(app_root, rel))
+        if os.path.isfile(p):
+            return p
+    return ""
+
+
+class _FieldSupplementDialog(tk.Toplevel):
+    # 현장 정보 보충 입력 — 유형별 핵심/선택 3버튼 + 공통 + 현장 의견.
+    # 저장 시 self.result_block 에 '## 현장 보충 정보' 마크다운 블록을 담는다.
+
+    def __init__(self, master, property_type):
+        super().__init__(master)
+        self.result_block = None
+        self._states = {}
+        self._order = []
+        self.title("현장 정보 보충")
+        self.configure(bg=C.CANVAS)
+        self.grab_set()
+        try:
+            self.geometry("580x700")
+        except Exception:
+            pass
+
+        groups = fsup.field_labels(property_type)
+
+        outer = tk.Frame(self, bg=C.CANVAS)
+        outer.pack(fill="both", expand=True)
+        canvas = tk.Canvas(outer, bg=C.CANVAS, highlightthickness=0)
+        vbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vbar.set)
+        vbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        body = tk.Frame(canvas, bg=C.CANVAS)
+        canvas.create_window((0, 0), window=body, anchor="nw")
+
+        def _on_config(_e=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        body.bind("<Configure>", _on_config)
+        self._on_config = _on_config
+
+        pad = tk.Frame(body, bg=C.CANVAS)
+        pad.pack(fill="both", expand=True, padx=20, pady=16)
+
+        tk.Label(pad, text="현장 정보 보충", bg=C.CANVAS, fg=C.TEXT_STRONG,
+                 font=("", 15, "bold")).pack(anchor="w")
+        tk.Label(pad,
+                 text="매물 유형: " + (property_type or "미상")
+                 + " · 안 만진 항목은 '확인 필요'로 들어갑니다.",
+                 bg=C.CANVAS, fg=C.TEXT_MUTED, font=("", 10)).pack(
+                     anchor="w", pady=(0, 8))
+
+        self._section(pad, "거래 상태 · 확인")
+        self.var_status = tk.StringVar(value=fsup.TRADE_STATUS_DEFAULT)
+        self._radio_row(pad, "거래상태", self.var_status, fsup.TRADE_STATUS_OPTIONS)
+        self.var_last = tk.StringVar(value="")
+        self._date_row(pad, "최종 확인일", self.var_last)
+        self.var_addr = tk.StringVar(value=fsup.ADDRESS_LEVEL_DEFAULT)
+        self._combo_row(pad, "주소 공개 수준", self.var_addr,
+                        fsup.ADDRESS_LEVEL_OPTIONS)
+        self.var_viol = tk.StringVar(value=fsup.VIOLATION_DEFAULT)
+        self._radio_row(pad, "위반건축물 여부", self.var_viol,
+                        fsup.VIOLATION_OPTIONS)
+        self.var_visit = tk.StringVar(value="")
+        self._date_row(pad, "현장 방문일", self.var_visit)
+
+        self._section(pad, "핵심 항목")
+        for label in groups["핵심"]:
+            self._field_row(pad, label)
+
+        more_btn = tk.Label(pad, text="＋ 세부 항목 더 보기", bg=C.CANVAS,
+                            fg=C.CORAL_DEEP, font=("", 11, "underline"),
+                            cursor="hand2")
+        more_btn.pack(anchor="w", pady=(10, 4))
+        more_holder = tk.Frame(pad, bg=C.CANVAS)
+        self._more_open = False
+
+        def _toggle(_e=None):
+            if self._more_open:
+                more_holder.pack_forget()
+                self._more_open = False
+                more_btn.configure(text="＋ 세부 항목 더 보기")
+            else:
+                more_holder.pack(fill="x")
+                self._more_open = True
+                more_btn.configure(text="－ 세부 항목 접기")
+            self._on_config()
+
+        more_btn.bind("<Button-1>", _toggle)
+        for label in groups["선택"]:
+            self._field_row(more_holder, label)
+
+        self._section(pad, "현장 중개사 의견 (자유 서술)")
+        self.txt_opinion = tk.Text(
+            pad, height=5, bg=C.SURFACE, fg=C.TEXT_STRONG, relief="solid",
+            bd=1, highlightthickness=1, highlightbackground=C.SURFACE_CARD,
+            wrap="word", font=("", 11), insertbackground=C.TEXT_STRONG)
+        self.txt_opinion.pack(fill="x", pady=(2, 0))
+        tk.Label(pad,
+                 text="장점·단점·적합/부적합 용도·노후 상태·유사매물 비교 등 "
+                 "(없으면 비워 두세요)",
+                 bg=C.CANVAS, fg=C.TEXT_MUTED, font=("", 9)).pack(
+                     anchor="w", pady=(2, 8))
+
+        btns = tk.Frame(pad, bg=C.CANVAS)
+        btns.pack(fill="x", pady=(8, 0))
+        save = tk.Label(btns, text="조사 메모에 반영", bg=C.CORAL_DEEP,
+                        fg="#FFFFFF", font=("", 12, "bold"), cursor="hand2")
+        save.pack(side="right", ipady=8, ipadx=14)
+        save.bind("<Button-1>", lambda _e: self._save())
+        cancel = tk.Label(btns, text="취소", bg=C.SURFACE_SOFT,
+                          fg=C.TEXT_MUTED, font=("", 12), cursor="hand2")
+        cancel.pack(side="right", padx=(0, 8), ipady=8, ipadx=14)
+        cancel.bind("<Button-1>", lambda _e: self.destroy())
+
+    def _section(self, parent, title):
+        tk.Label(parent, text=title, bg=C.CANVAS, fg=C.CORAL_DEEP,
+                 font=("", 12, "bold")).pack(anchor="w", pady=(14, 4))
+
+    def _radio_row(self, parent, label, var, options):
+        row = tk.Frame(parent, bg=C.CANVAS)
+        row.pack(fill="x", pady=2)
+        tk.Label(row, text=label, bg=C.CANVAS, fg=C.TEXT_STRONG, width=15,
+                 anchor="w", font=("", 11)).pack(side="left")
+        for opt in options:
+            ttk.Radiobutton(row, text=opt, value=opt, variable=var).pack(
+                side="left", padx=2)
+
+    def _combo_row(self, parent, label, var, options):
+        row = tk.Frame(parent, bg=C.CANVAS)
+        row.pack(fill="x", pady=2)
+        tk.Label(row, text=label, bg=C.CANVAS, fg=C.TEXT_STRONG, width=15,
+                 anchor="w", font=("", 11)).pack(side="left")
+        ttk.Combobox(row, textvariable=var, values=options, state="readonly",
+                     width=14).pack(side="left")
+
+    def _date_row(self, parent, label, var):
+        row = tk.Frame(parent, bg=C.CANVAS)
+        row.pack(fill="x", pady=2)
+        tk.Label(row, text=label, bg=C.CANVAS, fg=C.TEXT_STRONG, width=15,
+                 anchor="w", font=("", 11)).pack(side="left")
+        tk.Entry(row, textvariable=var, width=16, bg=C.SURFACE,
+                 fg=C.TEXT_STRONG, relief="solid", bd=1,
+                 insertbackground=C.TEXT_STRONG).pack(side="left")
+        today = tk.Label(row, text="오늘", bg=C.SURFACE_SOFT, fg=C.CORAL_DEEP,
+                         font=("", 10), cursor="hand2")
+        today.pack(side="left", padx=6, ipadx=6, ipady=2)
+        today.bind("<Button-1>",
+                   lambda _e: var.set(datetime.date.today().isoformat()))
+
+    def _field_row(self, parent, label):
+        row = tk.Frame(parent, bg=C.CANVAS)
+        row.pack(fill="x", pady=2)
+        tk.Label(row, text=label, bg=C.CANVAS, fg=C.TEXT_STRONG, width=17,
+                 anchor="w", font=("", 11)).pack(side="left")
+        state = tk.StringVar(value=fsup.NEED_CHECK)
+        for opt in (fsup.CONFIRMED, fsup.NEED_CHECK, fsup.NOT_APPLICABLE):
+            ttk.Radiobutton(row, text=opt, value=opt, variable=state).pack(
+                side="left", padx=1)
+        val = tk.Entry(row, width=14, bg=C.SURFACE, fg=C.TEXT_STRONG,
+                       relief="solid", bd=1, insertbackground=C.TEXT_STRONG)
+        val.pack(side="left", padx=(6, 0))
+        self._states[label] = (state, val)
+        self._order.append(label)
+
+    def _save(self):
+        field_states = {
+            label: (st.get(), val.get())
+            for label, (st, val) in self._states.items()
+        }
+        self.result_block = fsup.build_supplement_block(
+            trade_status=self.var_status.get(),
+            last_check_date=self.var_last.get(),
+            address_level=self.var_addr.get(),
+            violation=self.var_viol.get(),
+            visit_date=self.var_visit.get(),
+            field_states=field_states,
+            field_order=self._order,
+            opinion=self.txt_opinion.get("1.0", "end").strip(),
+        )
+        self.destroy()
+
+
+class _VibeLoginDialog(tk.Toplevel):
+    """바이브 계정 로그인 (tkinter — PySide6 미사용). 성공 시 self.user_info 세팅.
+
+    2026-08-07: vibemap PySide6 로그인 창과 같은 모습으로 다시 그렸다(사용자 요청).
+    PySide6 가 없어 vibemap 창을 서브프로세스로 못 띄우는 환경(무료 배포본 등)에서만
+    이 창이 뜨므로, 겉모습이라도 바이브맵과 통일한다. 색 버튼은 macOS 에서 ttk/tk
+    버튼 배경색이 안 먹으므로 Frame+Label 로 직접 그린다. keyring·서버는 vibe_auth 공용."""
+
+    def __init__(self, master):
+        super().__init__(master)
+        self.user_info = None
+        self._busy = False
+        self._logo_image = None  # PhotoImage 참조 유지(GC 방지)
+        B = _VIBE_BRAND
+        self.title("바이브소장 — 로그인")
+        self.resizable(False, False)
+        self.configure(bg=B["bg"])
+        self.grab_set()
+
+        pad = tk.Frame(self, bg=B["bg"])
+        pad.pack(fill="both", expand=True, padx=32, pady=(28, 24))
+
+        # 로고 (없으면 이모지 폴백)
+        self._build_logo(pad)
+
+        tk.Label(
+            pad, text="바이브소장", bg=B["bg"], fg=B["navy"],
+            font=("", 18, "bold"),
+        ).pack(pady=(4, 2))
+        tk.Label(
+            pad, text="공인중개사 전용 부동산 자동화 솔루션",
+            bg=B["bg"], fg=B["text_sub"], font=("", 11),
+        ).pack(pady=(0, 18))
+
+        # 아이디
+        tk.Label(pad, text="아이디", bg=B["bg"], fg=B["text_sub"],
+                 font=("", 11), anchor="w").pack(fill="x")
+        self.e_id = tk.Entry(
+            pad, bg=B["field_bg"], fg=B["field_fg"],
+            relief="solid", bd=1, highlightthickness=1,
+            highlightbackground=B["border"], highlightcolor=B["blue"],
+            insertbackground=B["field_fg"], font=("", 12),
+        )
+        self.e_id.pack(fill="x", ipady=6, pady=(4, 10))
+
+        # 비밀번호
+        tk.Label(pad, text="비밀번호", bg=B["bg"], fg=B["text_sub"],
+                 font=("", 11), anchor="w").pack(fill="x")
+        self.e_pw = tk.Entry(
+            pad, show="●", bg=B["field_bg"], fg=B["field_fg"],
+            relief="solid", bd=1, highlightthickness=1,
+            highlightbackground=B["border"], highlightcolor=B["blue"],
+            insertbackground=B["field_fg"], font=("", 12),
+        )
+        self.e_pw.pack(fill="x", ipady=6, pady=(4, 10))
+        self.e_pw.bind("<Return>", lambda _e: self._do_login())
+
+        # 아이디/비밀번호 저장
+        self.var_remember = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            pad, text="아이디/비밀번호 저장", variable=self.var_remember,
+            bg=B["bg"], fg=B["text_sub"], activebackground=B["bg"],
+            selectcolor=B["field_bg"], font=("", 11), anchor="w",
+            highlightthickness=0, bd=0,
+        ).pack(fill="x", pady=(0, 16))
+
+        # 로그인 버튼 (Frame+Label — macOS 색 버튼)
+        self.btn_login = tk.Label(
+            pad, text="로그인", bg=B["blue"], fg="#FFFFFF",
+            font=("", 13, "bold"), cursor="hand2",
+        )
+        self.btn_login.pack(fill="x", ipady=11)
+        self.btn_login.bind("<Button-1>", lambda _e: self._do_login())
+        self.btn_login.bind(
+            "<Enter>", lambda _e: self._hover(self.btn_login, True))
+        self.btn_login.bind(
+            "<Leave>", lambda _e: self._hover(self.btn_login, False))
+
+        # 회원가입 (링크 스타일)
+        self.btn_signup = tk.Label(
+            pad, text="처음이신가요?  회원가입", bg=B["bg"], fg=B["blue"],
+            font=("", 11, "underline"), cursor="hand2",
+        )
+        self.btn_signup.pack(pady=(12, 0))
+        self.btn_signup.bind("<Button-1>", lambda _e: self._do_signup())
+
+        # 오류/상태 메시지
+        self.lb_msg = tk.Label(
+            pad, text="", bg=B["bg"], fg=B["error"],
+            font=("", 11), wraplength=300, justify="left",
+        )
+        self.lb_msg.pack(fill="x", pady=(10, 0))
+
+        self.e_id.focus_set()
+
+    def _build_logo(self, parent):
+        B = _VIBE_BRAND
+        path = _vibe_logo_path()
+        if path:
+            try:
+                from PIL import Image, ImageTk
+                img = Image.open(path)
+                if img.width > _VIBE_LOGO_WIDTH:
+                    ratio = _VIBE_LOGO_WIDTH / img.width
+                    img = img.resize(
+                        (_VIBE_LOGO_WIDTH, max(1, round(img.height * ratio))),
+                        Image.LANCZOS,
+                    )
+                self._logo_image = ImageTk.PhotoImage(img)
+                tk.Label(parent, image=self._logo_image, bg=B["bg"]).pack(
+                    pady=(0, 2))
+                return
+            except Exception:
+                pass
+        # 폴백: 이모지
+        tk.Label(parent, text="🏢", bg=B["bg"], font=("", 34)).pack(pady=(0, 6))
+
+    def _hover(self, widget, on):
+        if self._busy:
+            return
+        widget.config(bg=_VIBE_BRAND["blue_dk"] if on else _VIBE_BRAND["blue"])
+
+    def _do_signup(self):
+        # 폴백 창에서는 vibemap 회원가입(PySide6)을 못 띄운다. 있으면 서브프로세스로
+        # 시도하고, 없으면 안내한다. (이 창 자체가 PySide6 부재 시의 폴백이므로
+        # 대개 안내로 끝난다.)
+        if _vibemap_login_via_subprocess():
+            import vibe_auth
+            if vibe_auth.current_user():
+                self.user_info = vibe_auth.current_user()
+                self.destroy()
+                return
+        from tkinter import messagebox
+        messagebox.showinfo(
+            "회원가입",
+            "회원가입은 바이브맵 앱에서 진행해 주세요.\n"
+            "가입 후 이 창에서 같은 계정으로 로그인하시면 됩니다.",
+            parent=self,
+        )
+
+    def _do_login(self):
+        if self._busy:
+            return
+        import vibe_auth
+        uid = self.e_id.get().strip()
+        pw = self.e_pw.get()
+        if not uid or not pw:
+            self.lb_msg.config(text="아이디와 비밀번호를 입력하세요.")
+            return
+        self._busy = True
+        self.btn_login.config(
+            text="로그인 중… (서버 기동 시 최대 1분)", bg=_VIBE_BRAND["disabled"])
+        self.lb_msg.config(text="")
+        self.update_idletasks()
+        info, err = vibe_auth.login(uid, pw)
+        self._busy = False
+        self.btn_login.config(text="로그인", bg=_VIBE_BRAND["blue"])
+        if info:
+            self.user_info = info
+            self.destroy()
+        else:
+            self.lb_msg.config(text=err or "로그인에 실패했습니다.")
+
+
+def _vibemap_login_via_subprocess() -> bool:
+    """vibemap 의 PySide6 로그인 창(login_dialog.ensure_login)을 별도 프로세스로
+    띄운다(2026-08-07). 두 앱은 같은 라이선스 서버·같은 keyring(vibe_sozhang/
+    auth_token)을 쓰므로, 이 창에서 로그인하면 토큰이 공유되어 이 앱도 통과한다.
+
+    같은 창을 그대로 재사용하는 이유: 브랜딩과 '회원가입' 흐름이 vibemap 쪽에만
+    있는데, 발행 앱은 tkinter라 PySide6 위젯을 같은 프로세스에서 못 쓴다. 그래서
+    자식 프로세스로 띄운다. PySide6 가 없으면(무료 배포본 등) False 를 돌려
+    호출부가 tkinter 창으로 폴백한다.
+
+    반환: 로그인 창을 실제로 띄웠으면(성공·취소 무관) True — 결과는 호출부가
+    keyring 토큰으로 다시 판정한다. 못 띄웠으면 False(→ tkinter 폴백)."""
+    import os
+    import subprocess
+
+    if getattr(sys, "frozen", False):
+        # 번들(exe)은 vibemap 소스가 옆에 없다 → tkinter 폴백.
+        return False
+
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    vibemap_dir = os.path.abspath(os.path.join(app_root, os.pardir, "vibemap"))
+    login_module = os.path.join(vibemap_dir, "login_dialog.py")
+    if not os.path.isfile(login_module):
+        return False
+
+    # 자식 프로세스: vibemap.login_dialog.ensure_login() 만 실행하고
+    # 로그인 성공이면 0, 취소면 3 으로 끝낸다(토큰은 keyring 에 저장됨).
+    runner = (
+        "import sys; sys.path.insert(0, sys.argv[1]);\n"
+        "import login_dialog;\n"
+        "info = login_dialog.ensure_login('바이브소장');\n"
+        "sys.exit(0 if info else 3)\n"
+    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", runner, vibemap_dir],
+            timeout=600,
+        )
+    except FileNotFoundError:
+        return False
+    except Exception:
+        return False
+    # returncode 1 등(임포트 실패=PySide6 없음)은 '못 띄움'으로 보고 폴백.
+    return proc.returncode in (0, 3)
+
+
+# 2026-08-08: 로그인 게이트 기본 OFF.
+#   내 사무소 사용에서는 로그인이 아무 기능도 잠그지 않아(구독 미확인, 토큰만 확인)
+#   순수한 문턱이었다. 그래서 기본을 껐다. 로그인 창·vibe_auth·서브프로세스 코드는
+#   그대로 보존한다. 배포본에서 다시 켜려면 아래를 True 로 두거나
+#   VIBE_REQUIRE_LOGIN 환경변수를 준다.
+REQUIRE_LOGIN = False
+
+
+def _vibe_login_gate(root: tk.Tk) -> bool:
+    """발행 앱 진입 게이트. 기본은 OFF(로그인 없이 통과) — REQUIRE_LOGIN=True 또는
+    VIBE_REQUIRE_LOGIN 환경변수일 때만 로그인을 요구한다. 요구 시: 저장된 바이브
+    토큰이 유효하면 조용히 통과(vibemap 공유), 아니면 vibemap 로그인 창(PySide6)을
+    서브프로세스로 재사용, 그마저 안 되면 tkinter 창으로 폴백. 취소 시 False → 앱
+    종료. 개발용 --no-auth 로도 우회."""
+    import os
+    require = REQUIRE_LOGIN or bool(os.environ.get("VIBE_REQUIRE_LOGIN"))
+    if not require:
+        return True  # 2026-08-08: 기본 OFF — 로그인 없이 바로 진입
+    if "--no-auth" in sys.argv or os.environ.get("VIBE_SKIP_AUTH"):
+        return True
+    try:
+        import vibe_auth
+    except Exception:
+        return True  # 인증 모듈 없으면(개발) 막지 않음
+    if vibe_auth.current_user():
+        return True  # keyring 토큰 유효 → 재로그인 없이 통과 (N4: 구독으로 안 막음)
+
+    # 2026-08-07: 사용자 요청 — 바이브맵과 같은 로그인 창을 쓴다.
+    # vibemap 로그인 창을 자식 프로세스로 띄우고(성공 시 keyring 토큰 공유),
+    # 그 결과를 토큰으로 다시 판정한다. 못 띄우면 tkinter 창으로 폴백.
+    if _vibemap_login_via_subprocess():
+        return vibe_auth.current_user() is not None
+
+    dlg = _VibeLoginDialog(root)
+    root.wait_window(dlg)
+    return dlg.user_info is not None
+
+
+def _article_no_from_argv() -> str:
+    """vibemap [발행하기] 가 넘긴 매물번호. 이 앱이 자기 흐름(조사→글쓰기→포스팅)을
+    그대로 타게 해서 last_result·제목·상태가 정상 설정되도록 한다(내용 주입 방식의
+    제목 누락·포스팅 차단 문제를 근본 회피)."""
+    for i, a in enumerate(sys.argv):
+        if a == "--article-no" and i + 1 < len(sys.argv):
+            return sys.argv[i + 1].strip()
+        if a.startswith("--article-no="):
+            return a.split("=", 1)[1].strip()
+    return ""
+
+
 def main() -> None:
     root = tk.Tk()
-    BlogAutomationApp(root)
+    if not _vibe_login_gate(root):
+        root.destroy()
+        return
+    app = BlogAutomationApp(root)
+    article_no = _article_no_from_argv()
+    if article_no:
+        try:
+            app.start_from_article(article_no)
+        except Exception:
+            pass
     root.mainloop()
 
 
