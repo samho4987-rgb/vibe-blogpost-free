@@ -2,9 +2,9 @@
 set -e
 cd "$(dirname "$0")"
 
-if [[ -x ".venv/bin/python" ]]; then
-  exec ".venv/bin/python" app.py
+if [[ ! -x ".venv/bin/python" ]]; then
+  echo "처음 실행이라 전용 환경을 구성합니다(인터넷 필요, 몇 분 걸릴 수 있습니다)..."
+  zsh scripts/setup.command
 fi
 
-echo "가상환경이 없습니다. 먼저 scripts/setup.command를 실행해 주세요."
-read -r "?Enter를 누르면 닫힙니다."
+exec ".venv/bin/python" app.py
