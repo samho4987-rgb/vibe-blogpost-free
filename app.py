@@ -203,6 +203,8 @@ from naver_blog_automation.thumbnail import (
 )
 from naver_blog_automation.workflow import BlogAutomationWorkflow
 from claude_theme import apply_claude_theme, C
+# 2026-08-10: 내 매물 CSV 선택·중개사ID 행 필터 (배포 전 리뷰 — 과제 A 완성)
+import my_listings_source as mls
 import datetime
 from naver_blog_automation import field_supplement as fsup
 
@@ -296,6 +298,12 @@ class BlogAutomationApp:
         self.realtor_office_address_var = tk.StringVar(
             value=self.settings.realtor_office_address
         )
+        # 내 중개사 ID(네이버 realtorId) — 내매물 목록 행 필터용(2026-08-10).
+        # 편집은 환경설정 탭의 중개사무소 정보에서(내매물 탭 상시 노출은 과함 —
+        # 08-10 사용자 피드백). 비워 두면 바이브맵 설정에서 자동으로 가져온다.
+        self.my_realtor_id_var = tk.StringVar(
+            value=getattr(self.settings, "my_realtor_id", "") or ""
+        )
         self.realtor_footer_var = tk.BooleanVar(
             value=self.settings.realtor_footer_enabled
         )
@@ -327,6 +335,10 @@ class BlogAutomationApp:
         # 외부 AI로 만든 이미지 첨부(선택). 썸네일 1 + 본문 3.
         self.selected_thumbnail_path: str | None = None
         self.selected_body_image_paths: list[str | None] = [None, None, None]
+        # 2026-08-10: 첨부 이미지가 "어느 매물의 것인지" 기억한다.
+        # 다른 매물번호로 조사를 시작하면 첨부를 비운다 — 예전엔 초기화 지점이
+        # 없어 옛 매물의 대표·본문 이미지가 새 매물 글에 그대로 붙었다(실사용 보고).
+        self._attach_article: str = ""
         self.thumbnail_pick_var = tk.StringVar(value="선택 안 함 (없으면 로컬 이미지 사용)")
         self.body_image_pick_vars = [
             tk.StringVar(value="선택 안 함") for _ in range(3)
@@ -1254,6 +1266,7 @@ class BlogAutomationApp:
             bar, text="새로고침", command=self._refresh_my_listings
         ).grid(row=0, column=2)
 
+
         table_wrap = ttk.Frame(parent, style="White.TFrame")
         table_wrap.grid(row=2, column=0, sticky="nsew")
         table_wrap.rowconfigure(0, weight=1)
@@ -1335,15 +1348,18 @@ class BlogAutomationApp:
                     row["desc"],
                 ),
             )
+        note = getattr(self, "_listings_source_note", "")
         if listings:
+            head = f"{len(listings)}건 · 매물을 클릭하면 매물번호가 채워집니다."
             self.listings_count_label.configure(
-                text=f"{len(listings)}건 · 매물을 클릭하면 매물번호가 채워집니다."
+                text=f"{head}\n{note}" if note else head
             )
         else:
-            self.listings_count_label.configure(
-                text="이 폴더에서 '내매물' CSV를 찾지 못했습니다. "
-                     "바이브맵에서 '내 매물'을 먼저 내보내 주세요."
+            empty = getattr(self, "_listings_empty_hint", "") or (
+                "'내매물' CSV를 찾지 못했습니다. "
+                "바이브맵에서 [내 매물]을 먼저 실행해 주세요."
             )
+            self.listings_count_label.configure(text=empty)
 
     def _on_listing_selected(self, _event=None) -> None:
         tree = getattr(self, "listings_tree", None)
@@ -1368,95 +1384,47 @@ class BlogAutomationApp:
             self._run_step(0)
 
     def _load_my_listings(self, folder: str) -> list[dict[str, str]]:
-        """폴더의 매물 CSV를 읽어 목록을 만든다. '내매물' 파일이 있으면 그것만 쓴다."""
-        from pathlib import Path
+        """내 매물 목록을 만든다 (2026-08-10 전면 재작성 — my_listings_source 위임).
 
-        base = Path(folder)
-        if not base.is_dir():
+        고친 세 가지:
+        ① 바이브맵의 숨김 파일(~/.greencore/vibemap_ui/.내매물.csv)도 자동 탐지 —
+           예전엔 지정 폴더만 봐서 바이브맵 [내 매물] 결과가 안 보였다.
+        ② '내매물' CSV 가 여러 개면 **가장 최신 1개만** 읽는다 —
+           예전엔 전부 병합해 옛 내보내기의 내려간 매물이 계속 남았다.
+        ③ 내 중개사 ID 로 **행 단위 대조** — 파일 이름 규칙이 깨져도
+           타인 매물이 목록에 들어오지 않는다. 내매물 파일이 없어도 ID 가
+           있으면 최신 시장 CSV 에서 내 매물만 추려 준다(무필터 폴백 아님).
+        """
+        self._listings_source_note = ""
+        self._listings_empty_hint = ""
+        rid, rid_src = mls.resolve_realtor_id(
+            getattr(self.settings, "my_realtor_id", "")
+        )
+        path, kind = mls.find_source_file(folder, has_realtor_id=bool(rid))
+        if path is None:
             return []
-        csv_files = [
-            entry
-            for entry in base.iterdir()
-            if entry.is_file() and entry.suffix.lower() == ".csv"
-        ]
-        my_files = [f for f in csv_files if "내매물" in f.name]
-        # 2026-08-07(개선③): '내매물*.csv' 가 없으면 폴더의 다른 CSV(바이브맵 시장
-        # 수집분 등)를 읽지 않는다. 예전엔 전부 읽어 타인 매물 수만 건이 섞였다.
-        target_files = my_files
-        seen: set[str] = set()
-        rows: list[dict[str, str]] = []
-        for path in target_files:
-            for row in self._read_listings_csv(path):
-                if row["article_no"] in seen:
-                    continue
-                seen.add(row["article_no"])
-                rows.append(row)
+        if kind == "market" and not rid:
+            # 내매물 파일이 없고 ID 도 없으면 시장 CSV 는 절대 읽지 않는다
+            # (2026-08-06 타인 매물 55,134건 사고의 재발 방지).
+            self._listings_empty_hint = (
+                "'내매물' CSV 를 찾지 못했습니다. 바이브맵에서 [내 매물]을 "
+                "실행하시거나, 환경설정의 '내 중개사 ID'를 넣으면 최신 수집 "
+                "CSV에서 내 매물만 추려 드립니다."
+            )
+            return []
+        rows, dropped, _had_col = mls.read_listings_csv(
+            path, realtor_id=rid, require_realtor=(kind == "market")
+        )
+        if kind == "market" and not rows:
+            self._listings_empty_hint = (
+                f"최신 수집 CSV({path.name})에서 중개사 ID '{rid}' 매물을 "
+                "찾지 못했습니다. ID 를 확인해 주세요."
+            )
+            return []
+        self._listings_source_note = mls.source_note(
+            path, kind, dropped, rid, rid_src
+        )
         return rows
-
-    def _read_listings_csv(self, path) -> list[dict[str, str]]:
-        for encoding in ("utf-8-sig", "cp949", "utf-8", "euc-kr"):
-            out: list[dict[str, str]] = []
-            try:
-                with open(path, encoding=encoding, newline="") as handle:
-                    reader = csv.DictReader(handle)
-                    fields = reader.fieldnames or []
-                    article_col = None
-                    for name in fields:
-                        if name and name.strip() in (
-                            "매물번호",
-                            "매물 번호",
-                            "articleNo",
-                            "article_no",
-                            "articleNumber",
-                        ):
-                            article_col = name
-                            break
-                    if article_col is None:
-                        article_col = fields[0] if fields else None
-                    if article_col is None:
-                        return []
-                    for record in reader:
-                        article_no = str(record.get(article_col, "") or "").strip()
-                        if not article_no.isdigit():
-                            continue
-                        out.append(
-                            {
-                                "article_no": article_no,
-                                "name": str(
-                                    record.get("매물명")
-                                    or record.get("매물 명")
-                                    or ""
-                                ).strip(),
-                                "deal_price": self._format_listing_deal_price(record),
-                                "desc": str(
-                                    record.get("간략설명")
-                                    or record.get("설명")
-                                    or ""
-                                ).strip(),
-                            }
-                        )
-                return out
-            except UnicodeDecodeError:
-                continue
-            except (OSError, csv.Error):
-                return out
-        return []
-
-    @staticmethod
-    def _format_listing_deal_price(record) -> str:
-        def field(key: str) -> str:
-            return str(record.get(key, "") or "").strip()
-
-        deal = field("거래방식")
-        if field("매매대금"):
-            price = field("매매대금")
-        elif field("전세금"):
-            price = field("전세금")
-        elif field("월세") or field("기보증금"):
-            price = "/".join(x for x in (field("기보증금"), field("월세")) if x)
-        else:
-            price = ""
-        return " ".join(part for part in (deal, price) if part)
 
     def _build_copyprompt_tab(self, parent: ttk.Frame) -> None:
         parent.columnconfigure(0, weight=1)
@@ -1607,6 +1575,12 @@ class BlogAutomationApp:
                 self.thumbnail_pick_var.set(os.path.basename(thumbs[0]))
             except Exception:
                 pass
+            # 2026-08-10: 폴더 이름이 매물번호다(output/(매물번호)/). 이 썸네일의
+            # 소속을 기록해, 같은 매물 조사(start_from_article)가 이어져도
+            # 방금 불러온 썸네일이 초기화되지 않게 한다.
+            _owner = os.path.basename(base).strip()
+            if _owner.isdigit():
+                self._attach_article = _owner
         # 3) blog자료 탭으로 이동 + 안내
         try:
             self._goto_result_paste()
@@ -1700,23 +1674,48 @@ class BlogAutomationApp:
             ],
         )
 
+    def _mark_attachment_owner(self) -> None:
+        """첨부한 이미지가 현재 매물번호 소속임을 기록한다(2026-08-10)."""
+        self._attach_article = self.article_var.get().strip()
+
+    def _clear_attached_images(self, reason: str = "") -> None:
+        """첨부 이미지 4장(대표 1 + 본문 3)과 표시 라벨을 초기 상태로 되돌린다."""
+        had_any = bool(
+            (self.selected_thumbnail_path or "").strip()
+            or any(p for p in self.selected_body_image_paths)
+        )
+        self.selected_thumbnail_path = None
+        self.selected_body_image_paths = [None, None, None]
+        try:
+            self.thumbnail_pick_var.set("선택 안 함 (없으면 로컬 이미지 사용)")
+            for var in self.body_image_pick_vars:
+                var.set("선택 안 함")
+        except Exception:
+            pass
+        self._attach_article = ""
+        if had_any and reason:
+            self._append_log(f"첨부 이미지를 초기화했습니다 — {reason}")
+
     def _pick_thumbnail_image(self) -> None:
         path = self._pick_image_file("대표 이미지(썸네일) 선택")
         if path:
             self.selected_thumbnail_path = path
             self.thumbnail_pick_var.set(Path(path).name)
+            self._mark_attachment_owner()
 
     def _pick_body_image(self, index: int) -> None:
         path = self._pick_image_file(f"본문 이미지 {index + 1} 선택")
         if path:
             self.selected_body_image_paths[index] = path
             self.body_image_pick_vars[index].set(Path(path).name)
+            self._mark_attachment_owner()
 
     def _attach_thumbnail_url(self) -> None:
         path = self._prompt_and_download_image("대표 이미지(썸네일) URL")
         if path:
             self.selected_thumbnail_path = path
             self.thumbnail_pick_var.set(f"URL 이미지 첨부됨 ({Path(path).name})")
+            self._mark_attachment_owner()
 
     def _attach_body_image_url(self, index: int) -> None:
         path = self._prompt_and_download_image(f"본문 이미지 {index + 1} URL")
@@ -1725,6 +1724,7 @@ class BlogAutomationApp:
             self.body_image_pick_vars[index].set(
                 f"URL 이미지 첨부됨 ({Path(path).name})"
             )
+            self._mark_attachment_owner()
 
     def _prompt_and_download_image(self, title: str) -> str | None:
         from tkinter import simpledialog
@@ -1994,6 +1994,9 @@ class BlogAutomationApp:
             ("연락처(전화번호)", self.realtor_office_phone_var),
             ("등록번호", self.realtor_registration_no_var),
             ("소재지(주소)", self.realtor_office_address_var),
+            # 블로그에 표기되지 않는 값 — 내매물 목록에서 내 매물만 거르는 데 쓴다.
+            # 비워 두면 바이브맵 설정의 값을 자동으로 가져온다.
+            ("내 중개사 ID (매물 필터용 · 표기 안 됨)", self.my_realtor_id_var),
         )
         for slot, (label, variable) in enumerate(realtor_fields):
             self._labeled_entry(realtor_frame, label, variable, slot)
@@ -2606,6 +2609,9 @@ class BlogAutomationApp:
         self.settings.realtor_office_address = (
             self.realtor_office_address_var.get().strip()
         )
+        self.settings.my_realtor_id = (
+            self.my_realtor_id_var.get().strip()
+        )
         self.settings.realtor_footer_enabled = bool(
             self.realtor_footer_var.get()
         )
@@ -3172,6 +3178,16 @@ class BlogAutomationApp:
 
     def _run_sample(self) -> None:
         article_no = self.article_var.get().strip()
+        # 2026-08-10: 다른 매물의 조사를 시작하면 이전 매물의 첨부 이미지를 비운다.
+        # (같은 매물 재조사면 유지. 첨부가 없으면 아무 일도 하지 않는다.)
+        if (
+            self._attach_article
+            and article_no
+            and article_no != self._attach_article
+        ):
+            self._clear_attached_images(
+                f"매물번호가 {self._attach_article} → {article_no} 로 바뀌었습니다."
+            )
         curl = self.curl_text.get("1.0", "end").strip()
         self._persist_curl_preference(curl)
         # 자동 갱신 체크 상태를 즉시 반영(워크플로 생성 전에 설정에 적용).
@@ -3286,6 +3302,16 @@ class BlogAutomationApp:
                 "먼저 '1. 매물 조사하기'를 실행해 주세요.",
             )
             return
+        # 2026-08-10: 매물번호를 바꾸고 조사 없이 생성하면 옛 매물의 자료
+        # (좌표→로드뷰·카드 내용·저장 폴더)로 이미지가 만들어진다 — 차단.
+        _entered = self.article_var.get().strip()
+        if _entered and self.last_result.property_info.article_no != _entered:
+            messagebox.showinfo(
+                "매물번호 확인",
+                "화면의 매물번호가 조사해 둔 매물과 다릅니다.\n"
+                "같은 매물번호로 '1. 매물 조사하기'를 먼저 실행해 주세요.",
+            )
+            return
         prompt = self.image_prompt_text.get("1.0", "end").strip()
         if not prompt:
             messagebox.showinfo(
@@ -3391,6 +3417,16 @@ class BlogAutomationApp:
     def _save_draft(self) -> None:
         if self.last_result is None:
             messagebox.showinfo("콘텐츠 필요", "먼저 '1. 매물 조사하기'와 글 작성(붙여넣기 또는 AI 자동 글쓰기)을 완료해 주세요.")
+            return
+        # 2026-08-10: 매물번호를 바꾸고 조사 없이 포스팅하면 옛 매물의
+        # 이미지·지도·원문링크가 새 글에 붙는다 — 생성 단계와 같은 가드.
+        _entered = self.article_var.get().strip()
+        if _entered and self.last_result.property_info.article_no != _entered:
+            messagebox.showinfo(
+                "매물번호 확인",
+                "화면의 매물번호가 조사해 둔 매물과 다릅니다.\n"
+                "같은 매물번호로 '1. 매물 조사하기'를 먼저 실행해 주세요.",
+            )
             return
         # BYO-AI 방식: 제목·본문은 화면(blog자료)에 붙여넣은 값을 기준으로 확인한다.
         # (AI 자동 생성을 실행하지 않아도 붙여넣은 글로 포스팅할 수 있어야 한다.)
@@ -3633,8 +3669,16 @@ class BlogAutomationApp:
                     )
                     if published:
                         title = "발행 완료"
+                        # 2026-08-10: "(전체 공개)" 하드코딩 제거 — 실제 설정대로 안내.
+                        _vis = (
+                            "비공개"
+                            if str(
+                                getattr(self.settings, "publish_visibility", "")
+                            ).strip().lower() == "private"
+                            else "전체 공개"
+                        )
                         message = (
-                            "네이버 블로그에 발행을 완료했습니다(전체 공개). "
+                            f"네이버 블로그에 발행을 완료했습니다({_vis}). "
                             "확인용 Chrome 창은 그대로 열어 두었습니다."
                         )
                     else:

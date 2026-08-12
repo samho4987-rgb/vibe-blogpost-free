@@ -29,6 +29,7 @@ STAGE = OUT_DIR / RELEASE_NAME
 # 배포에 포함할 '파일'(운영 필수 + 안내 문서).
 INCLUDE_FILES = [
     "app.py",
+    "my_listings_source.py",   # 2026-08-10: 내 매물 CSV 선택·중개사ID 필터
     "run.bat",
     "run.command",
     "requirements.txt",
