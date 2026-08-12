@@ -30,6 +30,8 @@ STAGE = OUT_DIR / RELEASE_NAME
 INCLUDE_FILES = [
     "app.py",
     "my_listings_source.py",   # 2026-08-10: 내 매물 CSV 선택·중개사ID 필터
+    "claude_theme.py",         # 2026-08-12: app.py:205 가 직접 import — 누락 시 실행 자체가 안 됨(실사용 확인)
+    "vibe_auth.py",            # app.py 의 로그인 게이트가 조건부로 import(현재는 REQUIRE_LOGIN=False 라 없어도 안 죽지만, 있어야 완전함)
     "run.bat",
     "run.command",
     "requirements.txt",
