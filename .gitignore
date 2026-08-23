@@ -39,3 +39,5 @@ cookies*
 logs/
 *.log
 *.exe
+_git_lock_trash/
+release_맥미니설치용_20260812/
